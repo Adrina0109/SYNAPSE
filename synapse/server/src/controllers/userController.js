@@ -13,7 +13,7 @@ export const updateProfile = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Validation failed', errors });
         }
 
-        const { department, year, skills, careerGoal, dailyHours } = parsed.data;
+        const { department, year, skills, careerGoal, dailyHours, cgpa, backlogs, targetRole, weeklyClassHours } = parsed.data;
 
         const updateFields = {};
         if (department !== undefined) updateFields.department = department;
@@ -21,6 +21,10 @@ export const updateProfile = async (req, res, next) => {
         if (skills !== undefined) updateFields.skills = skills;
         if (careerGoal !== undefined) updateFields.careerGoal = careerGoal;
         if (dailyHours !== undefined) updateFields.dailyHours = dailyHours;
+        if (cgpa !== undefined) updateFields.cgpa = cgpa;
+        if (backlogs !== undefined) updateFields.backlogs = backlogs;
+        if (targetRole !== undefined) updateFields.targetRole = targetRole;
+        if (weeklyClassHours !== undefined) updateFields.weeklyClassHours = weeklyClassHours;
 
         // Mark onboarding complete if all required fields are present
         const user = await User.findById(req.user.id);

@@ -48,6 +48,18 @@ export const profileSchema = z.object({
     dailyHours: z.number().int().min(1).max(8),
 });
 
+const optionalNumber = (schema) => z.preprocess(
+    (value) => value === '' || value === undefined ? undefined : Number(value),
+    schema.optional()
+);
+
+export const onboardingDetailsSchema = z.object({
+    cgpa: optionalNumber(z.number().min(0, 'CGPA must be between 0 and 10').max(10, 'CGPA must be between 0 and 10')),
+    backlogs: optionalNumber(z.number().int('Backlogs must be a whole number').min(0, 'Backlogs cannot be negative')),
+    targetRole: z.string().max(100, 'Target role cannot exceed 100 characters').optional(),
+    weeklyClassHours: optionalNumber(z.number().min(0, 'Weekly class hours must be between 0 and 60').max(60, 'Weekly class hours must be between 0 and 60')),
+});
+
 // Password strength checker — returns rules status
 export const checkPasswordStrength = (password) => {
     const rules = [

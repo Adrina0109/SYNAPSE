@@ -75,4 +75,20 @@ export const profileSchema = z.object({
         .min(1, 'Minimum 1 hour per day')
         .max(8, 'Maximum 8 hours per day')
         .optional(),
-});
+    cgpa: z
+        .number()
+        .min(0)
+        .max(10)
+        .optional(),
+    backlogs: z
+        .number()
+        .int()
+        .min(0)
+        .optional(),
+    targetRole: z.string().max(100).optional(),
+    weeklyClassHours: z
+        .number()
+        .min(0)
+        .max(60)
+        .optional(),
+}).strict();

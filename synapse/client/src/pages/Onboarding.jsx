@@ -1,7 +1,10 @@
 import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
+import { onboardingDetailsSchema } from '../lib/validators.js';
 
 const DEPARTMENTS = [
     'Computer Science', 'Information Technology', 'Electronics & Communication',
@@ -26,6 +29,14 @@ const SKILL_SUGGESTIONS = [
 export default function Onboarding() {
     const { user, updateUser } = useAuth();
     const navigate = useNavigate();
+    const {
+        register,
+        handleSubmit,
+        formState: { errors: detailErrors },
+    } = useForm({
+        resolver: zodResolver(onboardingDetailsSchema),
+        mode: 'onBlur',
+    });
 
     const [form, setForm] = useState({
         department: '',
@@ -85,8 +96,7 @@ export default function Onboarding() {
         return errs;
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    const onSubmit = async (details) => {
         const errs = validate();
         setErrors(errs);
         if (Object.keys(errs).length > 0) return;
@@ -100,6 +110,7 @@ export default function Onboarding() {
                 skills: form.skills,
                 careerGoal: form.careerGoal === 'Other' ? form.careerGoalCustom : form.careerGoal,
                 dailyHours: form.dailyHours,
+                ...details,
             };
             const { data } = await api.patch('/users/me/profile', payload);
             if (data.success) {
@@ -133,7 +144,7 @@ export default function Onboarding() {
                     </div>
                 )}
 
-                <form onSubmit={handleSubmit} noValidate className="space-y-8">
+                <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-8">
                     {/* Department */}
                     <div>
                         <label htmlFor="department" className="block font-body text-sm font-medium text-ink mb-2">
@@ -265,6 +276,76 @@ export default function Onboarding() {
                                 {errors.careerGoalCustom && <p className="mt-1 font-mono text-xs text-signal">{errors.careerGoalCustom}</p>}
                             </div>
                         )}
+                    </div>
+
+                    {/* Optional academic and career details */}
+                    <div className="space-y-4">
+                        <p className="font-mono text-xs tracking-widest uppercase text-ink-faint">
+                            Additional details <span className="normal-case tracking-normal">(optional)</span>
+                        </p>
+                        <div className="grid sm:grid-cols-2 gap-4">
+                            <div>
+                                <label htmlFor="cgpa" className="block font-body text-sm font-medium text-ink mb-2">
+                                    CGPA (0–10)
+                                </label>
+                                <input
+                                    id="cgpa"
+                                    type="number"
+                                    min="0"
+                                    max="10"
+                                    step="any"
+                                    {...register('cgpa', { setValueAs: (value) => value === '' ? undefined : Number(value) })}
+                                    className="input-base"
+                                    aria-invalid={!!detailErrors.cgpa}
+                                />
+                                {detailErrors.cgpa && <p className="mt-1 font-mono text-xs text-signal">{detailErrors.cgpa.message}</p>}
+                            </div>
+                            <div>
+                                <label htmlFor="backlogs" className="block font-body text-sm font-medium text-ink mb-2">
+                                    Backlogs
+                                </label>
+                                <input
+                                    id="backlogs"
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    {...register('backlogs', { setValueAs: (value) => value === '' ? undefined : Number(value) })}
+                                    className="input-base"
+                                    aria-invalid={!!detailErrors.backlogs}
+                                />
+                                {detailErrors.backlogs && <p className="mt-1 font-mono text-xs text-signal">{detailErrors.backlogs.message}</p>}
+                            </div>
+                            <div>
+                                <label htmlFor="targetRole" className="block font-body text-sm font-medium text-ink mb-2">
+                                    Target role
+                                </label>
+                                <input
+                                    id="targetRole"
+                                    type="text"
+                                    maxLength="100"
+                                    {...register('targetRole')}
+                                    className="input-base"
+                                    aria-invalid={!!detailErrors.targetRole}
+                                />
+                                {detailErrors.targetRole && <p className="mt-1 font-mono text-xs text-signal">{detailErrors.targetRole.message}</p>}
+                            </div>
+                            <div>
+                                <label htmlFor="weeklyClassHours" className="block font-body text-sm font-medium text-ink mb-2">
+                                    Weekly class hours (0–60)
+                                </label>
+                                <input
+                                    id="weeklyClassHours"
+                                    type="number"
+                                    min="0"
+                                    max="60"
+                                    step="any"
+                                    {...register('weeklyClassHours', { setValueAs: (value) => value === '' ? undefined : Number(value) })}
+                                    className="input-base"
+                                    aria-invalid={!!detailErrors.weeklyClassHours}
+                                />
+                                {detailErrors.weeklyClassHours && <p className="mt-1 font-mono text-xs text-signal">{detailErrors.weeklyClassHours.message}</p>}
+                            </div>
+                        </div>
                     </div>
 
                     {/* Daily hours slider */}
