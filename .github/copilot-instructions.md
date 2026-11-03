@@ -40,3 +40,11 @@ Keep JavaScript in ES module style and match the existing formatting and naming 
 - Read configuration from environment variables via `process.env`; never hardcode secrets or credentials.
 - Server environment variable names currently referenced in source (names only): `CLIENT_ORIGIN`, `MONGODB_URI`, `PORT`, `NODE_ENV`, `JWT_SECRET`, `JWT_EXPIRES_IN`, `JWT_REMEMBER_EXPIRES_IN`, `MENTOR_INVITE_CODE`, `ADMIN_INVITE_CODE`.
 - Do not add dependencies unless requested.
+
+## Paths and conventions for new work
+
+- All file paths in prompts are relative to the repo root, so the backend is `synapse/server/src/...` and the frontend is `synapse/client/src/...`. When a prompt says `server/src/...` or `client/src/...`, it means the path under `synapse/`.
+- Every new Mongoose model must be imported wherever it is populated, and models referenced by `ref` that do not exist yet must not break server startup.
+- All AI calls (Gemini) go through one shared service, `synapse/server/src/services/aiClient.js`, once it exists. Never call the AI SDK directly from controllers. AI environment variable names will be `GEMINI_API_KEY`, `GEMINI_MODEL` and `GEMINI_EMBED_MODEL`.
+- AI output is always treated as untrusted: validate it with Zod before saving, and never save AI-generated data without the user's confirmation.
+- Any new server environment variable must also be added (name only, no value) to `synapse/server/.env.example`.
