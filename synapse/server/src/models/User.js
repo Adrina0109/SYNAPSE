@@ -54,6 +54,32 @@ const userSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+                mentor: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            default: null,
+        },
+        cgpa: {
+            type: Number,
+            min: 0,
+            max: 10,
+            default: null,
+        },
+        backlogs: {
+            type: Number,
+            min: 0,
+            default: 0,
+        },
+        targetRole: {
+            type: String,
+            default: '',
+        },
+        weeklyClassHours: {
+            type: Number,
+            min: 0,
+            max: 60,
+            default: 30,
+        },
     },
     { timestamps: true }
 );
