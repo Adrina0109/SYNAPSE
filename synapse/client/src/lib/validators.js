@@ -60,6 +60,18 @@ export const onboardingDetailsSchema = z.object({
     weeklyClassHours: optionalNumber(z.number().min(0, 'Weekly class hours must be between 0 and 60').max(60, 'Weekly class hours must be between 0 and 60')),
 });
 
+export const taskFormSchema = z.object({
+    title: z.string().trim().min(1, 'Enter a task title').max(200, 'Title cannot exceed 200 characters'),
+    description: z.string().max(2000, 'Description cannot exceed 2000 characters'),
+    category: z.enum(['assessment', 'assignment', 'placement', 'event', 'personal']),
+    priority: z.enum(['low', 'medium', 'high']),
+    deadline: z.string().refine(
+        (value) => !value || !Number.isNaN(Date.parse(value)),
+        'Enter a valid deadline'
+    ),
+    estimatedHours: optionalNumber(z.number().min(0, 'Estimated hours cannot be negative').max(100, 'Estimated hours cannot exceed 100')),
+});
+
 // Password strength checker — returns rules status
 export const checkPasswordStrength = (password) => {
     const rules = [
