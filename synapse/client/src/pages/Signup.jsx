@@ -210,7 +210,7 @@ export default function Signup() {
                                     id="inviteCode"
                                     type="text"
                                     placeholder="Enter your invite code"
-                                    className="input-base font-mono uppercase tracking-widest"
+                                    className="input-base font-mono tracking-widest"
                                     aria-invalid={!!errors.inviteCode}
                                     aria-describedby={errors.inviteCode ? 'inviteCode-error' : undefined}
                                     {...register('inviteCode')}
