@@ -11,6 +11,8 @@ import taskRoutes from './routes/taskRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import mentorRoutes from './routes/mentorRoutes.js';
 import announcementRoutes from './routes/announcementRoutes.js';
+import documentRoutes from './routes/documentRoutes.js';
+import assistantRoutes from './routes/assistantRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 const app = express();
@@ -37,6 +39,8 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/mentor', mentorRoutes);
 app.use('/api/announcements', announcementRoutes);
+app.use('/api/documents', documentRoutes);
+app.use('/api/assistant', assistantRoutes);
 
 // 404 handler
 app.use((req, res) => {

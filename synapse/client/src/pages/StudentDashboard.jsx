@@ -139,10 +139,11 @@ export default function StudentDashboard() {
                     <span className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</span>
                     <span className="hidden sm:block font-mono text-xs text-ink-faint border-l border-ink/15 pl-3 ml-1">Student</span>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-4">
+                <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
                     <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
                     <button onClick={() => navigate('/tasks')} className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">My tasks</button>
                     <Link to="/announcements" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Announcements</Link>
+                    <Link to="/assistant" className="btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2">Ask the assistant</Link>
                     <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
                 </div>
             </nav>

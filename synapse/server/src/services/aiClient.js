@@ -1,6 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 
 export const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
+export const DEFAULT_GEMINI_EMBED_MODEL = 'gemini-embedding-2';
 
 const createAIError = (message) => {
     const error = new Error(message);
@@ -15,7 +16,12 @@ export const generateJSON = async ({ systemPrompt, userPrompt }) => {
     }
 
     const model = process.env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
-    const client = new GoogleGenAI({ apiKey });
+    let client;
+    try {
+        client = new GoogleGenAI({ apiKey });
+    } catch {
+        throw createAIError('AI service is unavailable. Please try again.');
+    }
 
     let response;
     try {
@@ -61,4 +67,47 @@ export const generateJSON = async ({ systemPrompt, userPrompt }) => {
     }
 
     throw createAIError('AI returned invalid JSON. Please try again.');
+};
+
+export const embedTexts = async (texts, { taskType = 'RETRIEVAL_DOCUMENT' } = {}) => {
+    if (!Array.isArray(texts) || texts.some((text) => typeof text !== 'string')) {
+        throw createAIError('AI could not process the document. Please try again.');
+    }
+    if (texts.length === 0) return [];
+
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+    if (!apiKey) {
+        throw createAIError('AI service is not configured. Please contact an administrator.');
+    }
+
+    const model = process.env.GEMINI_EMBED_MODEL?.trim() || DEFAULT_GEMINI_EMBED_MODEL;
+    const embeddings = [];
+
+    try {
+        const client = new GoogleGenAI({ apiKey });
+        for (let index = 0; index < texts.length; index += 100) {
+            const response = await client.models.embedContent({
+                model,
+                contents: texts.slice(index, index + 100),
+                config: { taskType },
+            });
+            const batch = response.embeddings?.map((embedding) => embedding.values);
+            if (
+                !batch
+                || batch.length !== Math.min(100, texts.length - index)
+                || batch.some((values) => (
+                    !Array.isArray(values)
+                    || values.length === 0
+                    || values.some((value) => typeof value !== 'number' || !Number.isFinite(value))
+                ))
+            ) {
+                throw createAIError('AI returned invalid embeddings. Please try again.');
+            }
+            embeddings.push(...batch);
+        }
+    } catch {
+        throw createAIError('AI service is unavailable. Please try again.');
+    }
+
+    return embeddings;
 };
