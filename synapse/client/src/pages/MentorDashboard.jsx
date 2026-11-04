@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
@@ -79,8 +80,9 @@ export default function MentorDashboard() {
                     <span className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</span>
                     <span className="hidden sm:block font-mono text-xs text-ink-faint border-l border-ink/15 pl-3 ml-1">Mentor</span>
                 </div>
-                <div className="flex items-center gap-2 sm:gap-4">
+                <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
                     <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
+                    <Link to="/documents" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Documents</Link>
                     <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
                 </div>
             </nav>

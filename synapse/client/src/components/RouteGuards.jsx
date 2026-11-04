@@ -36,7 +36,8 @@ export const RoleRoute = ({ role, children }) => {
         return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    if (user.role !== role) {
+    const allowedRoles = Array.isArray(role) ? role : [role];
+    if (!allowedRoles.includes(user.role)) {
         return <Navigate to={getDashboardPath()} replace />;
     }
 

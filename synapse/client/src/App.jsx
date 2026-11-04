@@ -8,6 +8,8 @@ import Signup from './pages/Signup.jsx';
 import Onboarding from './pages/Onboarding.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Announcements from './pages/Announcements.jsx';
+import Assistant from './pages/Assistant.jsx';
+import Documents from './pages/Documents.jsx';
 import StudentDashboard from './pages/StudentDashboard.jsx';
 import MentorDashboard from './pages/MentorDashboard.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
@@ -58,6 +60,14 @@ export default function App() {
                 }
             />
             <Route
+                path="/assistant"
+                element={
+                    <RoleRoute role="student">
+                        <Assistant />
+                    </RoleRoute>
+                }
+            />
+            <Route
                 path="/mentor"
                 element={
                     <RoleRoute role="mentor">
@@ -66,10 +76,26 @@ export default function App() {
                 }
             />
             <Route
+                path="/documents"
+                element={
+                    <RoleRoute role={['mentor', 'admin']}>
+                        <Documents />
+                    </RoleRoute>
+                }
+            />
+            <Route
                 path="/admin"
                 element={
                     <RoleRoute role="admin">
                         <AdminDashboard />
+                    </RoleRoute>
+                }
+            />
+            <Route
+                path="/admin/documents"
+                element={
+                    <RoleRoute role="admin">
+                        <Documents />
                     </RoleRoute>
                 }
             />
