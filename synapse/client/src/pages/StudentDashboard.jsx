@@ -142,6 +142,7 @@ export default function StudentDashboard() {
                 <div className="flex items-center gap-2 sm:gap-4">
                     <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
                     <button onClick={() => navigate('/tasks')} className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">My tasks</button>
+                    <Link to="/announcements" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Announcements</Link>
                     <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
                 </div>
             </nav>

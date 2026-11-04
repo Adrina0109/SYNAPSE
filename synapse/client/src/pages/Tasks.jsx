@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 import TaskForm from '../components/tasks/TaskForm.jsx';
@@ -17,13 +17,14 @@ const STATUSES = [
 export default function Tasks() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [tasks, setTasks] = useState([]);
     const [statusFilter, setStatusFilter] = useState('');
     const [categoryFilter, setCategoryFilter] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
     const [actionError, setActionError] = useState('');
-    const [feedback, setFeedback] = useState('');
+    const [feedback, setFeedback] = useState(location.state?.successMessage || '');
     const [isSaving, setIsSaving] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
 
@@ -46,6 +47,12 @@ export default function Tasks() {
     useEffect(() => {
         loadTasks();
     }, [loadTasks]);
+
+    useEffect(() => {
+        if (location.state?.successMessage) {
+            navigate(location.pathname, { replace: true, state: null });
+        }
+    }, [location.pathname, location.state, navigate]);
 
     const completedCount = useMemo(
         () => tasks.filter((task) => task.status === 'completed').length,
