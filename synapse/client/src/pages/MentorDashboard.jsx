@@ -49,13 +49,7 @@ export default function MentorDashboard() {
         navigate('/');
     };
 
-    const students = [
-        { name: 'Aarav Sharma', dept: 'Computer Science', goal: 'Data Scientist', progress: 72, atRisk: false },
-        { name: 'Priya Nair', dept: 'Electronics', goal: 'Hardware Engineer', progress: 34, atRisk: true },
-        { name: 'Rohan Mehta', dept: 'Computer Science', goal: 'Full-Stack Dev', progress: 88, atRisk: false },
-        { name: 'Sneha Patel', dept: 'Information Tech', goal: 'Backend Engineer', progress: 55, atRisk: false },
-        { name: 'Arjun Reddy', dept: 'Computer Science', goal: 'Software Engineer', progress: 41, atRisk: true },
-    ];
+    const students = [];
 
     return (
         <div className="min-h-screen bg-paper">
@@ -87,11 +81,13 @@ export default function MentorDashboard() {
                         <div className="font-mono text-xs text-ink-faint tracking-widest uppercase mt-1">Students</div>
                     </div>
                     <div className="card-hard p-6 text-center">
-                        <div className="font-display text-4xl font-bold text-signal">2</div>
+                        <div className="font-display text-4xl font-bold text-signal">{students.filter((student) => student.atRisk).length}</div>
                         <div className="font-mono text-xs text-ink-faint tracking-widest uppercase mt-1">At risk</div>
                     </div>
                     <div className="card-hard p-6 text-center">
-                        <div className="font-display text-4xl font-bold text-forest">58%</div>
+                        <div className="font-display text-4xl font-bold text-forest">
+                            {students.length ? `${Math.round(students.reduce((total, student) => total + student.progress, 0) / students.length)}%` : '—'}
+                        </div>
                         <div className="font-mono text-xs text-ink-faint tracking-widest uppercase mt-1">Avg. progress</div>
                     </div>
                 </div>
@@ -101,7 +97,12 @@ export default function MentorDashboard() {
                     <div className="px-6 py-4 border-b border-ink/10">
                         <h2 className="font-display text-lg font-semibold text-ink">Student progress</h2>
                     </div>
-                    {students.map((s) => <StudentRow key={s.name} {...s} />)}
+                    {students.length > 0 ? students.map((student) => <StudentRow key={student.name} {...student} />) : (
+                        <div className="px-6 py-10 text-center">
+                            <p className="font-display text-lg font-semibold text-ink">The admin hasn&apos;t assigned any students to you yet.</p>
+                            <p className="font-body text-sm text-ink-muted mt-2">Your assigned students will appear here.</p>
+                        </div>
+                    )}
                 </div>
 
                 <div className="mt-6 p-5 border border-signal/30 bg-signal/5">
