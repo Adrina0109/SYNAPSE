@@ -29,11 +29,11 @@ Keep JavaScript in ES module style and match the existing formatting and naming 
 
 ## Data access and mentor assignment
 
-- `User.mentor` is a reference to one mentor (`ObjectId` referencing `User`), with `null` as its default.
-- Treat mentor assignment as an admin-only operation. Students and mentors must never set or change `User.mentor`; keep it out of their writable profile/input schemas.
-- A mentor may access only students assigned to that mentor. Scope mentor queries by the authenticated mentor's `req.user.id` and the student's `mentor` reference.
+- `User.mentors` is an array of mentor ids (`ObjectId` references to `User`) with an empty-array default.
+- Treat mentor assignment as an admin-only operation. Students and mentors must never set or change `User.mentors`; keep it out of their writable profile/input schemas.
+- A mentor may access only students whose `mentors` array contains that mentor's id. Scope mentor queries by the authenticated mentor's `req.user.id` and the student's `mentors` array.
 - Scope other user-specific database queries to the authenticated user (`req.user.id`) unless the route is explicitly for a mentor or admin, and apply the appropriate role and ownership checks.
-- The current profile update schema does not include `mentor`. Preserve that restriction. Do not assume an assignment route or mentor-data access is already implemented; enforce these rules explicitly when adding such functionality.
+- The current profile update schema does not include `mentors`. Preserve that restriction. Do not assume an assignment route or mentor-data access is already implemented; enforce these rules explicitly when adding such functionality.
 
 ## Configuration and dependencies
 
