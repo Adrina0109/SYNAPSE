@@ -1,5 +1,7 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
+import api from '../lib/api.js';
 
 function SignalLogo() {
     return (
@@ -27,6 +29,105 @@ const MetricCard = ({ num, label, sub, highlight }) => (
 export default function AdminDashboard() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const [students, setStudents] = useState([]);
+    const [mentors, setMentors] = useState([]);
+    const [selectedStudents, setSelectedStudents] = useState([]);
+    const [selectedMentor, setSelectedMentor] = useState('');
+    const [search, setSearch] = useState('');
+    const [unassignedOnly, setUnassignedOnly] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [error, setError] = useState('');
+    const [feedback, setFeedback] = useState('');
+
+    const loadAssignments = useCallback(async () => {
+        setIsLoading(true);
+        setError('');
+        try {
+            const [studentsResponse, mentorsResponse] = await Promise.all([
+                api.get('/admin/users', {
+                    params: { role: 'student', ...(unassignedOnly ? { unassigned: 'true' } : {}) },
+                }),
+                api.get('/admin/mentors'),
+            ]);
+            setStudents(studentsResponse.data.users || []);
+            setMentors(mentorsResponse.data.mentors || []);
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || 'Could not load mentor assignments. Please try again.');
+        } finally {
+            setIsLoading(false);
+        }
+    }, [unassignedOnly]);
+
+    useEffect(() => {
+        loadAssignments();
+    }, [loadAssignments]);
+
+    const filteredStudents = useMemo(() => {
+        const normalizedSearch = search.trim().toLowerCase();
+        if (!normalizedSearch) return students;
+        return students.filter((student) => [
+            student.name,
+            student.email,
+            student.department,
+            student.year,
+        ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearch)));
+    }, [search, students]);
+
+    const visibleStudentIds = filteredStudents.map((student) => student._id);
+    const allVisibleSelected = visibleStudentIds.length > 0
+        && visibleStudentIds.every((studentId) => selectedStudents.includes(studentId));
+
+    const toggleStudentSelection = (studentId) => {
+        setSelectedStudents((current) => current.includes(studentId)
+            ? current.filter((id) => id !== studentId)
+            : [...current, studentId]);
+    };
+
+    const toggleVisibleSelection = () => {
+        setSelectedStudents((current) => allVisibleSelected
+            ? current.filter((id) => !visibleStudentIds.includes(id))
+            : [...new Set([...current, ...visibleStudentIds])]);
+    };
+
+    const assignSelected = async () => {
+        if (!selectedMentor || selectedStudents.length === 0) return;
+        setIsSaving(true);
+        setError('');
+        setFeedback('');
+        try {
+            const { data } = await api.patch('/admin/assign', {
+                studentIds: selectedStudents,
+                mentorId: selectedMentor,
+            });
+            setFeedback(`Mentor assigned to ${data.updatedCount} student${data.updatedCount === 1 ? '' : 's'}.`);
+            setSelectedStudents([]);
+            await loadAssignments();
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || 'Could not assign mentor. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const unassignMentor = async (student, mentor) => {
+        setIsSaving(true);
+        setError('');
+        setFeedback('');
+        try {
+            const { data } = await api.patch('/admin/unassign', {
+                studentIds: [student._id],
+                mentorId: mentor._id,
+            });
+            setFeedback(`${mentor.name} removed from ${student.name}.`);
+            await loadAssignments();
+            if (data.updatedCount === 0) setFeedback(`${mentor.name} was already unassigned from ${student.name}.`);
+        } catch (requestError) {
+            setError(requestError.response?.data?.message || 'Could not remove mentor assignment. Please try again.');
+        } finally {
+            setIsSaving(false);
+        }
+    };
 
     const handleLogout = async () => {
         await logout();
@@ -35,19 +136,19 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-paper">
-            <nav className="border-b border-ink/10 px-6 lg:px-10 py-4 flex items-center justify-between">
+            <nav className="border-b border-ink/10 px-4 sm:px-6 lg:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                     <SignalLogo />
                     <span className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</span>
                     <span className="hidden sm:block font-mono text-xs text-ink-faint border-l border-ink/15 pl-3 ml-1">Admin</span>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 sm:gap-4">
                     <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
                     <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
                 </div>
             </nav>
 
-            <div className="max-w-5xl mx-auto px-6 lg:px-10 py-10">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
                 <div className="mb-10">
                     <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Admin control</p>
                     <h1 className="font-display text-4xl font-bold text-ink">Batch overview.</h1>
@@ -60,6 +161,183 @@ export default function AdminDashboard() {
                     <MetricCard num="3" label="At risk" highlight />
                     <MetricCard num="6" label="Announcements" sub="this week" />
                 </div>
+
+                <section className="card-hard mb-8" aria-labelledby="mentor-assignment-heading">
+                    <div className="px-4 sm:px-6 py-4 border-b border-ink/10">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                                <p className="section-label mb-1">People & support</p>
+                                <h2 id="mentor-assignment-heading" className="font-display text-xl font-semibold text-ink">Mentor assignment</h2>
+                            </div>
+                            <label className="inline-flex items-center gap-2 font-body text-sm text-ink-muted">
+                                <input
+                                    type="checkbox"
+                                    checked={unassignedOnly}
+                                    onChange={(event) => {
+                                        setUnassignedOnly(event.target.checked);
+                                        setSelectedStudents([]);
+                                    }}
+                                    className="h-4 w-4 accent-forest"
+                                />
+                                Unassigned only
+                            </label>
+                        </div>
+                    </div>
+
+                    <div className="p-4 sm:p-6">
+                        {feedback && (
+                            <div className="mb-4 px-4 py-3 bg-forest/10 border border-forest/30 text-forest font-body text-sm" role="status">
+                                {feedback}
+                            </div>
+                        )}
+                        {error && (
+                            <div className="mb-4 px-4 py-3 bg-signal/10 border border-signal/30 text-signal font-body text-sm" role="alert">
+                                {error}
+                                <button type="button" onClick={loadAssignments} className="ml-3 underline">Try again</button>
+                            </div>
+                        )}
+
+                        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                            <label className="sr-only" htmlFor="studentSearch">Search students</label>
+                            <input
+                                id="studentSearch"
+                                type="search"
+                                value={search}
+                                onChange={(event) => setSearch(event.target.value)}
+                                placeholder="Search name, email or department"
+                                className="input-base min-w-0 flex-1"
+                            />
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <label className="sr-only" htmlFor="mentorSelect">Select a mentor</label>
+                                <select
+                                    id="mentorSelect"
+                                    value={selectedMentor}
+                                    onChange={(event) => setSelectedMentor(event.target.value)}
+                                    className="input-base min-w-0 sm:min-w-48"
+                                    disabled={mentors.length === 0 || isSaving}
+                                >
+                                    <option value="">Choose mentor</option>
+                                    {mentors.map((mentor) => (
+                                        <option key={mentor._id} value={mentor._id}>{mentor.name}</option>
+                                    ))}
+                                </select>
+                                <button
+                                    type="button"
+                                    onClick={assignSelected}
+                                    disabled={isSaving || !selectedMentor || selectedStudents.length === 0}
+                                    className="btn-primary whitespace-nowrap"
+                                >
+                                    {isSaving ? 'Saving…' : `Assign selected${selectedStudents.length ? ` (${selectedStudents.length})` : ''}`}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            {isLoading ? (
+                                <div className="py-8 flex items-center justify-center gap-3" role="status">
+                                    <div className="w-5 h-5 border-2 border-ink/20 border-t-signal rounded-full animate-spin" />
+                                    <span className="font-mono text-xs text-ink-faint tracking-widest uppercase">Loading students</span>
+                                </div>
+                            ) : error && students.length === 0 ? null : filteredStudents.length === 0 ? (
+                                <div className="py-8 text-center">
+                                    <p className="font-display text-lg font-semibold text-ink">No students found</p>
+                                    <p className="font-body text-sm text-ink-muted mt-1">
+                                        {search ? 'Try another search.' : unassignedOnly ? 'All students have at least one mentor.' : 'Students will appear here when available.'}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[720px] text-left">
+                                        <thead>
+                                            <tr className="border-b border-ink/10 font-mono text-xs tracking-wide uppercase text-ink-faint">
+                                                <th className="py-3 pr-3 font-normal">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={allVisibleSelected}
+                                                        onChange={toggleVisibleSelection}
+                                                        aria-label="Select all visible students"
+                                                        className="h-4 w-4 accent-forest"
+                                                    />
+                                                </th>
+                                                <th className="py-3 pr-4 font-normal">Student</th>
+                                                <th className="py-3 pr-4 font-normal">Department / year</th>
+                                                <th className="py-3 font-normal">Assigned mentors</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {filteredStudents.map((student) => (
+                                                <tr key={student._id} className="border-b border-ink/8 last:border-0 align-top">
+                                                    <td className="py-4 pr-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedStudents.includes(student._id)}
+                                                            onChange={() => toggleStudentSelection(student._id)}
+                                                            aria-label={`Select ${student.name}`}
+                                                            className="h-4 w-4 accent-forest"
+                                                        />
+                                                    </td>
+                                                    <td className="py-4 pr-4">
+                                                        <p className="font-body text-sm font-medium text-ink">{student.name}</p>
+                                                        <p className="font-mono text-xs text-ink-faint break-all">{student.email}</p>
+                                                    </td>
+                                                    <td className="py-4 pr-4">
+                                                        <p className="font-body text-sm text-ink">{student.department || '—'}</p>
+                                                        <p className="font-mono text-xs text-ink-faint">{student.year ? `Year ${student.year}` : 'Year not set'}</p>
+                                                    </td>
+                                                    <td className="py-4">
+                                                        {student.mentors?.length ? (
+                                                            <div className="flex flex-wrap gap-2">
+                                                                {student.mentors.map((mentor) => (
+                                                                    <span key={mentor._id} className="tag-pill-outline inline-flex items-center gap-1">
+                                                                        {mentor.name}
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => unassignMentor(student, mentor)}
+                                                                            disabled={isSaving}
+                                                                            aria-label={`Remove ${mentor.name} from ${student.name}`}
+                                                                            className="ml-1 text-signal hover:text-signal-dark disabled:opacity-50"
+                                                                        >
+                                                                            ×
+                                                                        </button>
+                                                                    </span>
+                                                                ))}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="tag-pill-outline text-ink-faint">Unassigned</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="border-t border-ink/10 pt-5">
+                            <h3 className="font-display text-base font-semibold text-ink mb-3">Mentors</h3>
+                            {isLoading ? (
+                                <p className="font-mono text-xs text-ink-faint">Loading mentor summary…</p>
+                            ) : mentors.length === 0 ? (
+                                <p className="font-body text-sm text-ink-muted">No mentors available.</p>
+                            ) : (
+                                <div className="grid sm:grid-cols-2 gap-3">
+                                    {mentors.map((mentor) => (
+                                        <div key={mentor._id} className="flex items-center justify-between gap-3 border border-ink/10 px-3 py-2">
+                                            <div className="min-w-0">
+                                                <p className="font-body text-sm font-medium text-ink truncate">{mentor.name}</p>
+                                                <p className="font-mono text-xs text-ink-faint truncate">{mentor.email}</p>
+                                            </div>
+                                            <span className="tag-pill-outline whitespace-nowrap">
+                                                {mentor.assignedStudentCount} student{mentor.assignedStudentCount === 1 ? '' : 's'}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </section>
 
                 {/* Admin action sections */}
                 <div className="grid lg:grid-cols-2 gap-6">

@@ -7,6 +7,8 @@ import 'dotenv/config';
 
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import taskRoutes from './routes/taskRoutes.js';
+import adminRoutes from './routes/adminRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 const app = express();
@@ -22,13 +24,15 @@ app.use(cors({
 app.use(mongoSanitize());
 
 // Body parsing
-app.use(express.json({ limit: '10kb' }));
+app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/tasks', taskRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((req, res) => {
