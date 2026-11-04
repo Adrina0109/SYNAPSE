@@ -7,6 +7,7 @@ import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
 import Onboarding from './pages/Onboarding.jsx';
 import Tasks from './pages/Tasks.jsx';
+import Announcements from './pages/Announcements.jsx';
 import StudentDashboard from './pages/StudentDashboard.jsx';
 import MentorDashboard from './pages/MentorDashboard.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
@@ -45,6 +46,14 @@ export default function App() {
                 element={
                     <RoleRoute role="student">
                         <Tasks />
+                    </RoleRoute>
+                }
+            />
+            <Route
+                path="/announcements"
+                element={
+                    <RoleRoute role="student">
+                        <Announcements />
                     </RoleRoute>
                 }
             />
