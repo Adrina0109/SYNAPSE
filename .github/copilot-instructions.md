@@ -60,3 +60,14 @@ Keep JavaScript in ES module style and match the existing formatting and naming 
 
 - Certification cost classification comes only from `server/src/data/certificationCatalog.js`; AI may choose between catalog entries but never decides or states cost. Every catalog entry must include `lastVerified`.
 - Generate revision notes on demand and store them on the corresponding roadmap day.
+
+## Planner
+
+- Planner logic is deterministic and lives only in `server/src/utils/plannerCore.js`; rules R1-R12 are documented at its top.
+- `server/src/services/capacityService.js` is the only database layer for planner operations.
+- The student's `dailyHours` (default 2) is the planner capacity; `weeklyClassHours` is not used.
+- Tasks may hold a planner-saved `workPlan`, which is cleared when estimated hours or deadline changes.
+- Re-planning always uses preview first, then apply with the preview fingerprint.
+- Roadmap hours are capped at the student's daily hours.
+- The planner never moves work past a deadline and reports shortfalls instead of hiding them.
+- Always use the day-key helpers in `server/src/utils/dateHelpers.js`.
