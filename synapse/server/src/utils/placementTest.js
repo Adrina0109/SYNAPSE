@@ -11,6 +11,7 @@ import {
     nextBestAction,
     WEIGHTS,
 } from '../services/readinessCore.js';
+import { checkDriveEligibility } from '../services/driveEligibility.js';
 
 let failures = 0;
 
@@ -201,6 +202,64 @@ check('readiness suggestions do not mutate their inputs', () => {
     computeWhatIf(inputs, 'in-progress');
     nextBestAction(inputs);
     assert.equal(JSON.stringify(inputs), original);
+});
+
+check('closed placement drive is not eligible', () => {
+    const result = checkDriveEligibility({
+        status: 'closed',
+        date: new Date('2026-11-06T12:00:00.000Z'),
+        minCgpa: 0,
+        maxBacklogs: null,
+        branches: [],
+    }, { cgpa: 8, backlogs: 0, department: 'CSE' }, now);
+    assert.equal(result.eligible, false);
+    assert.deepEqual(result.reasons, ['This drive is closed.']);
+});
+
+check('placement drive reports a CGPA below the minimum', () => {
+    const result = checkDriveEligibility({
+        status: 'open',
+        date: new Date('2026-11-06T12:00:00.000Z'),
+        minCgpa: 7,
+        maxBacklogs: null,
+        branches: [],
+    }, { cgpa: 6.8, backlogs: 0, department: 'CSE' }, now);
+    assert.deepEqual(result.reasons, ['Needs CGPA 7, you have 6.8.']);
+});
+
+check('placement drive asks student to add missing CGPA', () => {
+    const result = checkDriveEligibility({
+        status: 'open',
+        date: new Date('2026-11-06T12:00:00.000Z'),
+        minCgpa: 7,
+        maxBacklogs: null,
+        branches: [],
+    }, { cgpa: null, backlogs: 0, department: 'CSE' }, now);
+    assert.ok(result.reasons.includes('Add your CGPA in your profile to check eligibility.'));
+});
+
+check('placement drive branch comparison ignores case', () => {
+    const result = checkDriveEligibility({
+        status: 'open',
+        date: new Date('2026-11-06T12:00:00.000Z'),
+        minCgpa: 0,
+        maxBacklogs: null,
+        branches: ['CSE'],
+    }, { cgpa: 8, backlogs: 0, department: 'cse' }, now);
+    assert.equal(result.eligible, true);
+    assert.deepEqual(result.reasons, []);
+});
+
+check('placement drive rejects a department outside allowed branches', () => {
+    const result = checkDriveEligibility({
+        status: 'open',
+        date: new Date('2026-11-06T12:00:00.000Z'),
+        minCgpa: 0,
+        maxBacklogs: null,
+        branches: ['CSE'],
+    }, { cgpa: 8, backlogs: 0, department: 'ECE' }, now);
+    assert.equal(result.eligible, false);
+    assert.ok(result.reasons[0].startsWith('Open to CSE, your department is ECE.'));
 });
 
 if (failures > 0) process.exitCode = 1;

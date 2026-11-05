@@ -1,6 +1,12 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import {
+    createDrive,
+    deleteDrive,
+    listDrives,
+    updateDrive,
+} from '../controllers/driveController.js';
+import {
     addMockHandler,
     getChecklistHandler,
     getHistoryHandler,
@@ -25,6 +31,11 @@ const placementWriteLimiter = rateLimit({
 });
 
 router.use(requireAuth);
+
+router.get('/drives', requireRole('student', 'mentor', 'admin'), listDrives);
+router.post('/drives', requireRole('mentor', 'admin'), createDrive);
+router.patch('/drives/:id', requireRole('mentor', 'admin'), updateDrive);
+router.delete('/drives/:id', requireRole('mentor', 'admin'), deleteDrive);
 
 router.get('/readiness', requireRole('student'), getReadinessHandler);
 router.get('/readiness/whatif/:roadmapId', requireRole('student'), getWhatIfHandler);
