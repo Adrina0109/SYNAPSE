@@ -10,6 +10,7 @@ import InterviewChecklist from '../components/placement/InterviewChecklist.jsx';
 import MockSessions from '../components/placement/MockSessions.jsx';
 import ResumeGap from '../components/placement/ResumeGap.jsx';
 import DriveList from '../components/placement/DriveList.jsx';
+import ShareCard from '../components/placement/ShareCard.jsx';
 
 const PageNav = ({ user, onSignOut }) => (
     <nav className="border-b border-ink/10 px-4 py-4 flex flex-wrap items-center justify-between gap-3 sm:px-6 lg:px-10">
@@ -238,6 +239,7 @@ export default function Placement() {
                             </div>
                             <DriveList drives={drives} />
                         </section>
+                        <ShareCard />
                     </div>
                 )}
             </main>
