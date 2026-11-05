@@ -2,6 +2,82 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+  --bg: #F4F6FB;
+  --bg-elevated: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-2: #F0F2FA;
+  --border: rgba(15,16,32,0.08);
+  --border-strong: rgba(15,16,32,0.16);
+  --text: #0F1020;
+  --text-muted: #5B5E7A;
+  --text-faint: #8A8DA8;
+  --accent: #6A46F5;
+  --accent-strong: #5A36E6;
+  --accent-soft: rgba(106,70,245,0.12);
+  --blue: #2F7FE0;
+  --mint: #10A37A;
+  --danger: #D92D4B;
+  --warning: #C98A12;
+  --focus: #6A46F5;
+  --accent-light: #8065F7;
+  --bg-rgb: 244 246 251;
+  --surface-rgb: 255 255 255;
+  --surface-2-rgb: 240 242 250;
+  --border-rgb: 15 16 32;
+  --border-strong-rgb: 15 16 32;
+  --text-rgb: 15 16 32;
+  --text-muted-rgb: 91 94 122;
+  --text-faint-rgb: 138 141 168;
+  --accent-rgb: 106 70 245;
+  --accent-strong-rgb: 90 54 230;
+  --accent-light-rgb: 128 101 247;
+  --blue-rgb: 47 127 224;
+  --mint-rgb: 16 163 122;
+  --danger-rgb: 217 45 75;
+  --warning-rgb: 201 138 18;
+  --focus-rgb: 106 70 245;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0B0A1F;
+  --bg-elevated: #110F2B;
+  --surface: #171538;
+  --surface-2: #1E1B45;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.16);
+  --text: #F4F3FF;
+  --text-muted: #A3A0C8;
+  --text-faint: #6F6C99;
+  --accent: #7C5CFF;
+  --accent-strong: #6A46F5;
+  --accent-soft: rgba(124,92,255,0.16);
+  --blue: #3B9DFF;
+  --mint: #34D399;
+  --danger: #F43F5E;
+  --warning: #F5B73B;
+  --focus: #A78BFA;
+  --accent-light: #9B84FF;
+  --bg-rgb: 11 10 31;
+  --surface-rgb: 23 21 56;
+  --surface-2-rgb: 30 27 69;
+  --border-rgb: 255 255 255;
+  --border-strong-rgb: 255 255 255;
+  --text-rgb: 244 243 255;
+  --text-muted-rgb: 163 160 200;
+  --text-faint-rgb: 111 108 153;
+  --accent-rgb: 124 92 255;
+  --accent-strong-rgb: 106 70 245;
+  --accent-light-rgb: 155 132 255;
+  --blue-rgb: 59 157 255;
+  --mint-rgb: 52 211 153;
+  --danger-rgb: 244 63 94;
+  --warning-rgb: 245 183 59;
+  --focus-rgb: 167 139 250;
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -14,6 +90,9 @@
   body {
     @apply bg-paper text-ink font-body antialiased;
     font-feature-settings: 'ss01' on, 'ss02' on;
+    background-color: var(--bg);
+    color: var(--text);
+    transition: background-color 180ms ease, color 180ms ease;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -36,6 +115,10 @@
       animation-duration: 0.01ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
+    }
+
+    html {
+      scroll-behavior: auto;
     }
   }
 }
@@ -89,7 +172,7 @@
   /* Card with hard shadow */
   .card-hard {
     @apply bg-paper border border-ink/15;
-    box-shadow: 4px 4px 0px rgba(22, 20, 15, 0.12);
+    box-shadow: 4px 4px 0px rgb(var(--text-rgb) / 0.12);
     border-radius: 2px;
   }
 
