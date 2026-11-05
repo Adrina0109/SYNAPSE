@@ -158,6 +158,7 @@ export default function StudentDashboard() {
                     <button onClick={() => navigate('/tasks')} className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">My tasks</button>
                     <Link to="/announcements" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Announcements</Link>
                     <Link to="/roadmaps" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Roadmaps</Link>
+                    <Link to="/planner" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Planner</Link>
                     <Link to="/assistant" className="btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2">Ask the assistant</Link>
                     <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
                 </div>
