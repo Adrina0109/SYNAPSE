@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { generateJSON } from './aiClient.js';
+import { resolveCertification } from './certificationService.js';
 import { addDays, startOfISTDay } from '../utils/dateHelpers.js';
 import { RESOURCE_TYPES } from '../validators/roadmapValidators.js';
 
@@ -148,6 +149,37 @@ The plan should progress from fundamentals to practice, with roughly the final 2
     }
 
     return days;
+};
+
+export const buildRoadmapPreview = async (input, user) => {
+    const startDate = startOfISTDay(input.startDate || new Date());
+    const normalizedInput = { ...input, startDate };
+    const { certification, alternatives } = await resolveCertification({
+        goal: normalizedInput.goal,
+        pathType: normalizedInput.pathType,
+        targetCertification: normalizedInput.targetCertification,
+    });
+    const days = await generateRoadmapDays({
+        input: normalizedInput,
+        user,
+        certification,
+    });
+
+    return {
+        roadmap: {
+            goal: normalizedInput.goal,
+            currentLevel: normalizedInput.currentLevel,
+            hoursPerDay: normalizedInput.hoursPerDay,
+            durationDays: normalizedInput.durationDays,
+            preferredResources: normalizedInput.preferredResources,
+            pathType: normalizedInput.pathType,
+            targetCertification: normalizedInput.targetCertification || '',
+            startDate,
+            certification,
+            days,
+        },
+        certificationAlternatives: alternatives,
+    };
 };
 
 const notesResponseSchema = z.object({
