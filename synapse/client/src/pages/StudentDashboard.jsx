@@ -1,42 +1,114 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import ScoreGauge from '../components/placement/ScoreGauge.jsx';
-import TaskForm from '../components/tasks/TaskForm.jsx';
-import TaskItem from '../components/tasks/TaskItem.jsx';
-import { sortTasksByDeadline } from '../components/tasks/taskHelpers.js';
+import MetricCard from '../components/ui/MetricCard.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
+import {
+    ConflictCard,
+    ContinueLearningCard,
+    DigestSkeleton,
+    FocusInsightsCard,
+    PlacementReadinessCard,
+    UpcomingDeadlinesCard,
+    WeekPlanCard,
+} from '../components/dashboard/DashboardCards.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
+import ErrorState from '../components/ui/ErrorState.jsx';
 
-const Loading = ({ label }) => (
-    <div className="flex items-center gap-3 py-6" role="status">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-ink/20 border-t-signal" />
-        <span className="font-mono text-xs uppercase tracking-widest text-ink-faint">{label}</span>
-    </div>
+const errorMessage = (error, fallback) => (
+    error.response?.data?.message || error.message || fallback
 );
 
-const Empty = ({ children }) => (
-    <p className="py-4 font-body text-sm text-ink-muted">{children}</p>
+const getIstDayKey = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const parts = new Intl.DateTimeFormat('en', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: 'Asia/Kolkata',
+    }).formatToParts(date);
+    const values = Object.fromEntries(parts.map(({ type, value: partValue }) => [type, partValue]));
+    return `${values.year}-${values.month}-${values.day}`;
+};
+
+const getWeekStartKey = (dayKey) => {
+    const [year, month, day] = dayKey.split('-').map(Number);
+    const date = new Date(Date.UTC(year, month - 1, day));
+    date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+    return date.toISOString().slice(0, 10);
+};
+
+const formatHours = (hours) => {
+    const value = Number(hours);
+    return Number.isFinite(value) ? Number(value.toFixed(2)).toString() : '0';
+};
+
+const hasNumber = (value) => (
+    value !== null
+    && value !== undefined
+    && value !== ''
+    && Number.isFinite(Number(value))
 );
 
-const DashboardSection = ({ title, children, className = '' }) => (
-    <section className={`card-hard min-w-0 p-4 sm:p-5 ${className}`}>
-        <h2 className="mb-3 font-display text-lg font-semibold text-ink">{title}</h2>
-        {children}
+const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+};
+
+const QuickActionIcon = ({ name }) => {
+    const common = {
+        fill: 'none',
+        stroke: 'currentColor',
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        strokeWidth: 1.7,
+        viewBox: '0 0 24 24',
+        'aria-hidden': true,
+        className: 'h-5 w-5 shrink-0',
+    };
+
+    if (name === 'task') {
+        return <svg {...common}><path d="M8 5h11M8 12h11M8 19h11M4 5h.01M4 12h.01M4 19h.01" /></svg>;
+    }
+    if (name === 'announcement') {
+        return <svg {...common}><path d="M4 14V9a2 2 0 0 1 2-2h3l8-3v15l-8-3H6a2 2 0 0 1-2-2Z" /><path d="m8 16 1.5 4H13" /></svg>;
+    }
+    if (name === 'assistant') {
+        return <svg {...common}><path d="M12 3v3m0 12v3M3 12h3m12 0h3M5.64 5.64l2.12 2.12m8.48 8.48 2.12 2.12m0-12.72-2.12 2.12m-8.48 8.48-2.12 2.12" /><circle cx="12" cy="12" r="4" /></svg>;
+    }
+    if (name === 'roadmap') {
+        return <svg {...common}><circle cx="5" cy="18" r="2" /><circle cx="19" cy="6" r="2" /><path d="M7 18h4a3 3 0 0 0 3-3v-6a3 3 0 0 1 3-3h0" /></svg>;
+    }
+    return <svg {...common}><path d="M4 12h15m-6-6 6 6-6 6" /></svg>;
+};
+
+const quickActions = [
+    { label: 'Add task', to: '/tasks', icon: 'task' },
+    { label: 'Announcements', to: '/announcements/inbox', icon: 'announcement' },
+    { label: 'Ask AI', to: '/assistant', icon: 'assistant' },
+    { label: 'Generate roadmap', to: '/roadmaps', icon: 'roadmap' },
+    { label: 'Re-plan my week', to: '/planner', icon: 'planner', state: { autoPreview: true } },
+];
+
+const MetricLoading = ({ label }) => (
+    <section className="card-hard min-w-0 p-4 sm:p-5" aria-label={`Loading ${label}`}>
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="mt-4 h-9 w-20" />
+        <Skeleton className="mt-3 h-4 w-32" />
     </section>
 );
 
-const prettyDate = (value) => {
-    if (!value) return 'No deadline';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return 'Deadline unavailable';
-    return new Intl.DateTimeFormat(undefined, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-    }).format(date);
-};
+const MetricError = ({ label, message, onRetry }) => (
+    <section className="card-hard min-w-0 p-4 sm:p-5">
+        <p className="section-label">{label}</p>
+        <p className="mt-3 font-body text-sm text-danger" role="alert">{message}</p>
+        <button type="button" onClick={onRetry} className="btn-secondary mt-3 px-3 py-1.5 text-xs">Try again</button>
+    </section>
+);
 
 export default function StudentDashboard() {
     const { user } = useAuth();
@@ -46,11 +118,22 @@ export default function StudentDashboard() {
     const [tasks, setTasks] = useState([]);
     const [tasksLoading, setTasksLoading] = useState(true);
     const [tasksError, setTasksError] = useState('');
-    const [taskActionError, setTaskActionError] = useState('');
-    const [taskFeedback, setTaskFeedback] = useState('');
-    const [showTaskForm, setShowTaskForm] = useState(false);
-    const [editingTask, setEditingTask] = useState(null);
-    const [isSavingTask, setIsSavingTask] = useState(false);
+    const [capacity, setCapacity] = useState(null);
+    const [capacityLoading, setCapacityLoading] = useState(true);
+    const [capacityError, setCapacityError] = useState('');
+    const [roadmaps, setRoadmaps] = useState(null);
+    const [roadmapsLoading, setRoadmapsLoading] = useState(true);
+    const [roadmapsError, setRoadmapsError] = useState('');
+    const [roadmapDetail, setRoadmapDetail] = useState(null);
+    const [roadmapDetailLoading, setRoadmapDetailLoading] = useState(false);
+    const [roadmapDetailError, setRoadmapDetailError] = useState('');
+    const [roadmapDetailRetry, setRoadmapDetailRetry] = useState(0);
+    const [readiness, setReadiness] = useState(null);
+    const [readinessLoading, setReadinessLoading] = useState(true);
+    const [readinessError, setReadinessError] = useState('');
+    const [conflicts, setConflicts] = useState(null);
+    const [conflictsLoading, setConflictsLoading] = useState(true);
+    const [conflictsError, setConflictsError] = useState('');
 
     const loadDashboard = useCallback(async () => {
         setDashboardLoading(true);
@@ -59,7 +142,7 @@ export default function StudentDashboard() {
             const { data } = await api.get('/dashboard/student');
             setDashboard(data);
         } catch (error) {
-            setDashboardError(error.response?.data?.message || 'Could not load your dashboard. Please try again.');
+            setDashboardError(errorMessage(error, 'Could not load your dashboard. Please try again.'));
         } finally {
             setDashboardLoading(false);
         }
@@ -70,328 +153,371 @@ export default function StudentDashboard() {
         setTasksError('');
         try {
             const { data } = await api.get('/tasks');
-            setTasks(data.tasks || []);
+            if (!Array.isArray(data.tasks)) throw new Error('Task data is unavailable.');
+            setTasks(data.tasks);
         } catch (error) {
-            setTasksError(error.response?.data?.message || 'Could not load your tasks. Please try again.');
+            setTasksError(errorMessage(error, 'Could not load your tasks. Please try again.'));
         } finally {
             setTasksLoading(false);
+        }
+    }, []);
+
+    const loadCapacity = useCallback(async () => {
+        setCapacityLoading(true);
+        setCapacityError('');
+        try {
+            const { data } = await api.get('/planner/capacity', { params: { days: 7 } });
+            if (!Array.isArray(data.days)) throw new Error('Planner capacity data is unavailable.');
+            setCapacity(data);
+        } catch (error) {
+            setCapacityError(errorMessage(error, 'Could not load your planner capacity. Please try again.'));
+        } finally {
+            setCapacityLoading(false);
+        }
+    }, []);
+
+    const loadRoadmaps = useCallback(async () => {
+        setRoadmapsLoading(true);
+        setRoadmapsError('');
+        try {
+            const { data } = await api.get('/roadmaps');
+            if (!Array.isArray(data.roadmaps)) throw new Error('Roadmap data is unavailable.');
+            setRoadmaps(data.roadmaps);
+        } catch (error) {
+            setRoadmapsError(errorMessage(error, 'Could not load your roadmaps. Please try again.'));
+        } finally {
+            setRoadmapsLoading(false);
+        }
+    }, []);
+
+    const loadReadiness = useCallback(async () => {
+        setReadinessLoading(true);
+        setReadinessError('');
+        try {
+            const { data } = await api.get('/placement/readiness');
+            if (!data.readiness) throw new Error('Readiness data is unavailable.');
+            setReadiness(data.readiness);
+        } catch (error) {
+            setReadinessError(errorMessage(error, 'Could not load placement readiness.'));
+        } finally {
+            setReadinessLoading(false);
+        }
+    }, []);
+
+    const loadConflicts = useCallback(async () => {
+        setConflictsLoading(true);
+        setConflictsError('');
+        try {
+            const { data } = await api.get('/planner/conflicts');
+            if (!Array.isArray(data.conflicts)) throw new Error('Planner conflict data is unavailable.');
+            setConflicts(data.conflicts);
+        } catch (error) {
+            setConflictsError(errorMessage(error, 'Could not load planner conflicts.'));
+        } finally {
+            setConflictsLoading(false);
         }
     }, []);
 
     useEffect(() => {
         loadDashboard();
         loadTasks();
-    }, [loadDashboard, loadTasks]);
+        loadCapacity();
+        loadRoadmaps();
+    }, [loadDashboard, loadCapacity, loadRoadmaps, loadTasks]);
 
-    const pendingTasks = useMemo(
-        () => sortTasksByDeadline(tasks.filter((task) => task.status !== 'completed')),
-        [tasks]
-    );
-    const taskSummary = useMemo(() => {
-        const now = new Date();
-        const weekStart = new Date(now);
-        weekStart.setHours(0, 0, 0, 0);
-        weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
-        return {
-            overdue: pendingTasks.filter((task) => task.deadline && new Date(task.deadline) < now).length,
-            dueSoon: pendingTasks.filter((task) => {
-                if (!task.deadline) return false;
-                const deadline = new Date(task.deadline).getTime();
-                return deadline >= now.getTime() && deadline <= now.getTime() + 3 * 86400000;
-            }).length,
-            completedThisWeek: tasks.filter((task) => (
-                task.status === 'completed'
-                && task.completedAt
-                && new Date(task.completedAt) >= weekStart
-                && new Date(task.completedAt) <= now
-            )).length,
-        };
-    }, [pendingTasks, tasks]);
+    useEffect(() => {
+        if (!dashboard || dashboardLoading) return;
 
-    const saveTask = async (payload) => {
-        setIsSavingTask(true);
-        setTaskActionError('');
-        setTaskFeedback('');
-        try {
-            if (editingTask) {
-                await api.patch(`/tasks/${editingTask._id}`, payload);
-                setTaskFeedback('Task updated successfully.');
-            } else {
-                await api.post('/tasks', payload);
-                setTaskFeedback('Task added successfully.');
-            }
-            setShowTaskForm(false);
-            setEditingTask(null);
-            await loadTasks();
-            await loadDashboard();
-        } catch (error) {
-            setTaskActionError(error.response?.data?.message || 'Could not save this task. Please try again.');
-        } finally {
-            setIsSavingTask(false);
+        if (dashboard.readiness && typeof dashboard.readiness === 'object') {
+            setReadiness(dashboard.readiness);
+            setReadinessLoading(false);
+        } else {
+            loadReadiness();
+            return undefined;
         }
-    };
 
-    const toggleTask = async (task) => {
-        setTaskActionError('');
-        setTaskFeedback('');
-        try {
-            const { data } = await api.patch(`/tasks/${task._id}/toggle`);
-            setTasks((current) => current.map((item) => item._id === task._id ? data.task : item));
-            setTaskFeedback(data.task.status === 'completed' ? 'Task completed.' : 'Task marked pending.');
-            await loadDashboard();
-        } catch (error) {
-            setTaskActionError(error.response?.data?.message || 'Could not update task status. Please try again.');
+        setReadinessError('');
+    }, [dashboard, dashboardLoading, loadReadiness]);
+
+    useEffect(() => {
+        if (!dashboard || dashboardLoading) return;
+
+        if (Array.isArray(dashboard.conflicts)) {
+            setConflicts(dashboard.conflicts);
+            setConflictsLoading(false);
+            setConflictsError('');
+            return undefined;
         }
-    };
 
-    const deleteTask = async (task) => {
-        setTaskActionError('');
-        setTaskFeedback('');
-        try {
-            await api.delete(`/tasks/${task._id}`);
-            setTasks((current) => current.filter((item) => item._id !== task._id));
-            setTaskFeedback('Task deleted successfully.');
-            await loadDashboard();
-            return true;
-        } catch (error) {
-            setTaskActionError(error.response?.data?.message || 'Could not delete task. Please try again.');
-            return false;
+        loadConflicts();
+        return undefined;
+    }, [dashboard, dashboardLoading, loadConflicts]);
+
+    const activeRoadmap = useMemo(() => {
+        const dashboardRoadmap = dashboard?.activeRoadmaps?.find((roadmap) => roadmap.status === 'active');
+        if (dashboardRoadmap) {
+            const fullRoadmap = roadmaps?.find((roadmap) => roadmap._id === dashboardRoadmap._id);
+            return fullRoadmap
+                ? { ...fullRoadmap, ...dashboardRoadmap, progress: dashboardRoadmap.progress ?? fullRoadmap.progress }
+                : dashboardRoadmap;
         }
-    };
+        return roadmaps?.find((roadmap) => roadmap.status === 'active') ?? null;
+    }, [dashboard, roadmaps]);
 
-    const startEditing = (task) => {
-        setEditingTask(task);
-        setShowTaskForm(true);
-        setTaskActionError('');
-        setTaskFeedback('');
-    };
+    useEffect(() => {
+        if (!activeRoadmap?._id) {
+            setRoadmapDetail(null);
+            setRoadmapDetailLoading(false);
+            setRoadmapDetailError('');
+            return undefined;
+        }
 
-    const activeRoadmaps = Array.isArray(dashboard?.activeRoadmaps)
-        ? dashboard.activeRoadmaps
+        let cancelled = false;
+        setRoadmapDetail(null);
+        setRoadmapDetailLoading(true);
+        setRoadmapDetailError('');
+        api.get(`/roadmaps/${activeRoadmap._id}`)
+            .then(({ data }) => {
+                if (!data.roadmap || !Array.isArray(data.roadmap.days)) {
+                    throw new Error('Roadmap schedule data is unavailable.');
+                }
+                if (!cancelled) setRoadmapDetail(data.roadmap);
+            })
+            .catch((error) => {
+                if (!cancelled) setRoadmapDetailError(errorMessage(error, 'Could not load today’s roadmap topic.'));
+            })
+            .finally(() => {
+                if (!cancelled) setRoadmapDetailLoading(false);
+            });
+        return () => { cancelled = true; };
+    }, [activeRoadmap?._id, roadmapDetailRetry]);
+
+    const now = new Date();
+    const todayKey = capacity?.today || getIstDayKey(now);
+    const weekStartKey = getWeekStartKey(todayKey);
+    const pendingTasks = tasks.filter((task) => task.status === 'pending');
+    const incompleteTasks = tasks.filter((task) => task.status !== 'completed');
+    const dueSoonCount = incompleteTasks.filter((task) => {
+        if (!task.deadline) return false;
+        const deadline = new Date(task.deadline).getTime();
+        return deadline >= now.getTime() && deadline <= now.getTime() + 72 * 60 * 60 * 1000;
+    }).length;
+    const taskOverdueCount = incompleteTasks.filter((task) => (
+        task.deadline && new Date(task.deadline).getTime() < now.getTime()
+    )).length;
+    const completedThisWeek = tasks.filter((task) => {
+        if (task.status !== 'completed' || !task.completedAt) return false;
+        const completedKey = getIstDayKey(new Date(task.completedAt));
+        return completedKey >= weekStartKey && completedKey <= todayKey;
+    }).length;
+    const plannedHours = capacity?.days?.slice(0, 7).reduce(
+        (sum, day) => sum + (Number(day.totalHours) || 0),
+        0
+    ) ?? 0;
+    const roadmapProgress = hasNumber(activeRoadmap?.progress?.completionPercent)
+        ? Number(activeRoadmap.progress.completionPercent)
         : null;
-    const readinessScore = dashboard?.readinessScore ?? dashboard?.readiness?.score;
+    const readinessScore = hasNumber(dashboard?.readinessScore)
+        ? dashboard.readinessScore
+        : readiness?.score;
+    const planProgress = roadmapProgress ?? (hasNumber(readinessScore) ? Number(readinessScore) : null);
     const digestLines = Array.isArray(dashboard?.digest)
         ? dashboard.digest
         : dashboard?.digest?.lines;
 
+    if (dashboardLoading) {
+        return (
+            <div className="min-w-0">
+                <PageHeader title="Your student dashboard" subtitle="Loading your priorities and progress." />
+                <div className="grid gap-4 lg:grid-cols-12">
+                    <div className="space-y-4 lg:col-span-8">
+                        <Skeleton className="h-12 w-2/3" />
+                        <DigestSkeleton />
+                    </div>
+                    <Skeleton className="h-64 lg:col-span-4" />
+                    {Array.from({ length: 4 }, (_, index) => <MetricLoading key={index} label="dashboard metric" />)}
+                    {Array.from({ length: 3 }, (_, index) => <Skeleton key={`section-${index}`} className="h-72" />)}
+                </div>
+            </div>
+        );
+    }
+
+    if (dashboardError) {
+        return (
+            <div className="min-w-0">
+                <PageHeader title="Your student dashboard" />
+                <ErrorState message={dashboardError} onRetry={loadDashboard} />
+            </div>
+        );
+    }
+
+    const firstName = user?.name?.trim().split(/\s+/)[0] || 'there';
+    const greeting = `${getGreeting()}, ${firstName}`;
+    const readinessSubtitle = hasNumber(readinessScore)
+        ? `Stay focused. You are ${Math.round(Number(readinessScore))}% on track this week.`
+        : undefined;
+    const digestAvailable = Array.isArray(digestLines) && digestLines.length > 0;
+    const overdueCount = hasNumber(dashboard?.overdueCount)
+        ? Number(dashboard.overdueCount)
+        : taskOverdueCount;
+    const overdueAvailable = hasNumber(dashboard?.overdueCount) || !tasksError;
+    const activeRoadmapLoading = !activeRoadmap && roadmapsLoading;
+    const totalPlannedHours = formatHours(plannedHours);
+    const showConflictCard = Array.isArray(dashboard?.conflicts)
+        ? dashboard.conflicts.length > 0
+        : conflictsLoading || Boolean(conflictsError) || Boolean(conflicts?.length);
+
     return (
-        <div className="min-h-screen bg-paper">
-            <div className="mx-auto w-full max-w-6xl">
-                <header className="mb-6 sm:mb-8">
-                    <p className="section-label mb-2 text-signal">Student dashboard</p>
-                    <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">
-                        Welcome, {user?.name?.split(' ')[0] || 'back'}.
-                    </h1>
-                    <p className="mt-2 font-body text-sm text-ink-muted">
-                        {user?.department || 'Your learning plan'}{user?.year ? ` · Year ${user.year}` : ''}
-                    </p>
-                </header>
-
-                {dashboardError && (
-                    <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border border-signal/30 bg-signal/10 px-4 py-3" role="alert">
-                        <p className="font-body text-sm text-signal">{dashboardError}</p>
-                        <button type="button" onClick={loadDashboard} className="btn-secondary px-4 py-2 text-sm">Retry</button>
-                    </div>
-                )}
-
-                {dashboardLoading ? (
-                    <div className="card-hard mb-6 p-5"><Loading label="Loading your priorities" /></div>
-                ) : dashboard && Array.isArray(digestLines) && digestLines.length > 0 ? (
-                    <section className="card-hard mb-6 border-l-4 border-l-signal p-4 sm:p-6" aria-labelledby="digest-heading">
-                        <p className="section-label mb-1 text-signal">Your daily digest</p>
-                        <h2 id="digest-heading" className="mb-3 font-display text-xl font-semibold text-ink sm:text-2xl">What matters today</h2>
-                        <ul className="grid gap-2 sm:grid-cols-2">
-                            {digestLines.map((line, index) => (
-                                <li key={`${index}-${line}`} className="flex gap-2 font-body text-sm leading-relaxed text-ink-muted">
-                                    <span className="text-signal" aria-hidden="true">→</span>
-                                    <span>{line}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </section>
-                ) : null}
-
-                <div className="mb-6 grid min-w-0 gap-4 md:grid-cols-2">
-                    {dashboard && Array.isArray(dashboard.todayTasks) && (
-                        <DashboardSection title="Today's tasks">
-                            {dashboard.todayTasks.length === 0
-                                ? <Empty>No tasks due today.</Empty>
-                                : (
-                                    <ul className="space-y-3">
-                                        {dashboard.todayTasks.map((task) => (
-                                            <li key={task._id} className="flex min-w-0 items-start justify-between gap-3 border-b border-ink/10 pb-3 last:border-0 last:pb-0">
-                                                <div className="min-w-0">
-                                                    <p className="break-words font-body text-sm font-medium text-ink">{task.title}</p>
-                                                    <p className="mt-1 font-mono text-xs text-ink-faint">{task.status.replaceAll('_', ' ')}</p>
-                                                </div>
-                                                <span className="shrink-0 font-mono text-xs text-ink-faint">{prettyDate(task.deadline)}</span>
+        <div className="min-w-0 space-y-6">
+            <div className="grid min-w-0 gap-6 lg:grid-cols-12">
+                <section className="min-w-0 space-y-5 lg:col-span-8">
+                    <PageHeader title={greeting} subtitle={readinessSubtitle} />
+                    {dashboardLoading ? <DigestSkeleton /> : digestAvailable ? (
+                        <section className="card-hard min-w-0 overflow-hidden bg-gradient-to-br from-accent/20 via-surface to-blue/10 p-5 sm:p-6" aria-labelledby="study-companion-heading">
+                            <div className="flex items-start gap-4">
+                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent" aria-hidden="true">
+                                    <svg viewBox="0 0 32 32" className="h-7 w-7" fill="none">
+                                        <path d="M9 16h14" stroke="currentColor" strokeWidth="2" />
+                                        <circle cx="7" cy="16" r="4" fill="currentColor" />
+                                        <circle cx="25" cy="16" r="4" fill="currentColor" />
+                                    </svg>
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <p className="section-label mb-1 text-accent">Daily digest</p>
+                                    <h2 id="study-companion-heading" className="font-display text-xl font-semibold text-text sm:text-2xl">Your AI Study Companion</h2>
+                                    <ul className="mt-4 space-y-2">
+                                        {digestLines.slice(0, 4).map((line, index) => (
+                                            <li key={`${index}-${line}`} className="flex gap-2 font-body text-sm leading-relaxed text-text-muted">
+                                                <span className="mt-0.5 text-accent" aria-hidden="true">·</span>
+                                                <span className="min-w-0 break-words">{line}</span>
                                             </li>
                                         ))}
                                     </ul>
-                                )}
-                        </DashboardSection>
-                    )}
-
-                    {dashboard && Array.isArray(dashboard.nextDeadlines) && (
-                        <DashboardSection title="Upcoming deadlines">
-                            {dashboard.nextDeadlines.length === 0
-                                ? <Empty>No upcoming deadlines.</Empty>
-                                : (
-                                    <ul className="space-y-3">
-                                        {dashboard.nextDeadlines.map((task) => (
-                                            <li key={task._id} className="flex min-w-0 items-start justify-between gap-3 border-b border-ink/10 pb-3 last:border-0 last:pb-0">
-                                                <p className="min-w-0 break-words font-body text-sm font-medium text-ink">{task.title}</p>
-                                                <time className="shrink-0 text-right font-mono text-xs text-ink-faint" dateTime={task.deadline}>
-                                                    {prettyDate(task.deadline)}
-                                                </time>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                )}
-                        </DashboardSection>
-                    )}
-                </div>
-
-                <div className="mb-6 grid min-w-0 gap-4 lg:grid-cols-3">
-                    {activeRoadmaps !== null && (
-                        <DashboardSection title="Roadmap progress" className="lg:col-span-2">
-                            {activeRoadmaps.length === 0
-                                ? <Empty>No active roadmaps yet. Create one to start tracking progress.</Empty>
-                                : (
-                                    <div className="space-y-4">
-                                        {activeRoadmaps.map((roadmap) => {
-                                            const progress = roadmap.progress;
-                                            const percent = progress?.completionPercent ?? 0;
-                                            return (
-                                                <article key={roadmap._id}>
-                                                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                                                        <h3 className="min-w-0 break-words font-body text-sm font-medium text-ink">{roadmap.goal}</h3>
-                                                        <span className="tag-pill-outline shrink-0">{progress?.currentStreak ?? 0} day streak</span>
-                                                    </div>
-                                                    <div className="h-2 w-full overflow-hidden bg-ink/10" role="progressbar" aria-label={`${roadmap.goal} progress`} aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent}>
-                                                        <div className="h-full bg-forest" style={{ width: `${Math.min(100, Math.max(0, percent))}%` }} />
-                                                    </div>
-                                                    <p className="mt-1 font-mono text-xs text-ink-faint">{percent}% · {progress?.completedDays ?? 0} of {progress?.totalDays ?? 0} days</p>
-                                                </article>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            <Link to="/roadmaps" className="mt-4 inline-flex font-body text-sm font-medium text-signal hover:underline">View roadmaps →</Link>
-                        </DashboardSection>
-                    )}
-
-                    {dashboard?.readiness && Number.isFinite(Number(readinessScore)) && (
-                        <DashboardSection title="Placement readiness">
-                            <ScoreGauge score={readinessScore} />
-                            <p className="text-center font-body text-sm text-ink-muted">Your current readiness score</p>
-                            <Link to="/placement" className="mt-3 block text-center font-body text-sm font-medium text-signal hover:underline">Explore placement prep →</Link>
-                        </DashboardSection>
-                    )}
-                </div>
-
-                {Array.isArray(dashboard?.conflicts) && dashboard.conflicts.length > 0 && (
-                    <section className="card-hard mb-6 border-l-4 border-l-signal p-4 sm:p-5" role="status">
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <p className="section-label mb-1 text-signal">Planner warning</p>
-                                <h2 className="font-display text-lg font-semibold text-ink">Your schedule needs attention</h2>
-                                <ul className="mt-2 space-y-1">
-                                    {dashboard.conflicts.slice(0, 3).map((conflict, index) => (
-                                        <li key={conflict.id ?? index} className="font-body text-sm text-ink-muted">{conflict.message}</li>
-                                    ))}
-                                </ul>
+                                    <Link to="/assistant" className="btn-primary mt-5 inline-flex px-4 py-2 text-sm">Open assistant</Link>
+                                </div>
                             </div>
-                            <Link to="/planner" className="btn-secondary shrink-0 px-4 py-2 text-sm">Open planner</Link>
-                        </div>
-                    </section>
-                )}
-
-                {dashboard && Array.isArray(dashboard.mentors) && (
-                    <p className="mb-6 font-body text-sm text-ink-muted">
-                        <span className="font-semibold text-ink">Your mentors:</span>{' '}
-                        {dashboard.mentors.length
-                            ? dashboard.mentors.map((mentor) => mentor.name).filter(Boolean).join(', ')
-                            : 'No mentors assigned yet.'}
-                    </p>
-                )}
-
-                <section className="mb-8" aria-labelledby="quick-links-heading">
-                    <h2 id="quick-links-heading" className="mb-3 font-display text-lg font-semibold text-ink">Quick links</h2>
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                        {[
-                            ['Assistant', '/assistant'],
-                            ['Announcements', '/announcements/inbox'],
-                            ['Planner', '/planner'],
-                            ['Roadmaps', '/roadmaps'],
-                            ['Placement', '/placement'],
-                        ].map(([label, to]) => (
-                            <Link key={to} to={to} className="card-hard p-3 text-center font-body text-sm font-medium text-ink transition-colors hover:border-signal hover:text-signal sm:p-4">
-                                {label} →
-                            </Link>
-                        ))}
-                    </div>
+                        </section>
+                    ) : (
+                        <ErrorState message="Your daily digest is unavailable." onRetry={loadDashboard} />
+                    )}
                 </section>
 
-                <section aria-labelledby="my-tasks-heading">
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p className="section-label mb-1">Your work</p>
-                            <h2 id="my-tasks-heading" className="font-display text-2xl font-semibold text-ink">My Tasks</h2>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Link to="/tasks" className="btn-ghost text-sm">View all →</Link>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setEditingTask(null);
-                                    setShowTaskForm((visible) => !visible);
-                                    setTaskActionError('');
-                                    setTaskFeedback('');
-                                }}
-                                className="btn-primary px-4 py-2 text-sm"
-                            >
-                                {showTaskForm && !editingTask ? 'Close' : 'Add task'}
-                            </button>
-                        </div>
-                    </div>
-                    <p className="mb-4 font-mono text-xs text-ink-faint" aria-live="polite">
-                        {taskSummary.overdue} overdue · {taskSummary.dueSoon} due within 3 days · {taskSummary.completedThisWeek} completed this week
-                    </p>
-                    {taskFeedback && <p className="mb-4 border border-forest/30 bg-forest/10 px-4 py-3 font-body text-sm text-forest" role="status">{taskFeedback}</p>}
-                    {taskActionError && <p className="mb-4 border border-signal/30 bg-signal/10 px-4 py-3 font-body text-sm text-signal" role="alert">{taskActionError}</p>}
-                    {showTaskForm && (
-                        <div className="card-hard mb-4 p-4 sm:p-6">
-                            <h3 className="mb-4 font-display text-lg font-semibold text-ink">{editingTask ? 'Edit task' : 'Add a task'}</h3>
-                            <TaskForm
-                                task={editingTask}
-                                onSubmit={saveTask}
-                                onCancel={() => {
-                                    setShowTaskForm(false);
-                                    setEditingTask(null);
-                                }}
-                                isSaving={isSavingTask}
-                            />
-                        </div>
-                    )}
-                    {tasksLoading ? (
-                        <div className="card-hard p-5"><Loading label="Loading tasks" /></div>
-                    ) : tasksError ? (
-                        <div className="card-hard p-5 text-center" role="alert">
-                            <p className="mb-3 font-body text-sm text-signal">{tasksError}</p>
-                            <button type="button" onClick={loadTasks} className="btn-secondary px-4 py-2 text-sm">Try again</button>
-                        </div>
-                    ) : pendingTasks.length === 0 ? (
-                        <div className="card-hard p-5 text-center"><Empty>No pending tasks. Add one to get started.</Empty></div>
-                    ) : (
-                        <div className="space-y-3">
-                            {pendingTasks.slice(0, 6).map((task) => (
-                                <TaskItem key={task._id} task={task} onToggle={toggleTask} onEdit={startEditing} onDelete={deleteTask} />
-                            ))}
-                        </div>
-                    )}
+                <section className="card-hard min-w-0 p-4 sm:p-5 lg:col-span-4" aria-labelledby="quick-actions-heading">
+                    <p className="section-label mb-1">Get moving</p>
+                    <h2 id="quick-actions-heading" className="mb-3 font-display text-lg font-semibold text-text">Quick actions</h2>
+                    <ul className="space-y-1">
+                        {quickActions.map((action) => (
+                            <li key={action.to}>
+                                <Link
+                                    to={action.to}
+                                    state={action.state}
+                                    className="group flex min-w-0 items-center gap-3 rounded-lg px-3 py-3 font-body text-sm font-medium text-text-muted transition-colors hover:bg-surface-2 hover:text-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
+                                >
+                                    <QuickActionIcon name={action.icon} />
+                                    <span className="min-w-0 flex-1">{action.label}</span>
+                                    <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-text-faint transition-transform group-hover:translate-x-0.5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                                        <path d="m9 18 6-6-6-6" />
+                                    </svg>
+                                </Link>
+                            </li>
+                        ))}
+                    </ul>
                 </section>
             </div>
+
+            <section className="grid min-w-0 grid-cols-2 gap-4 lg:grid-cols-4" aria-label="Progress metrics">
+                {tasksLoading ? (
+                    <>
+                        <MetricLoading label="pending tasks" />
+                        <MetricLoading label="due soon" />
+                    </>
+                ) : tasksError ? (
+                    <>
+                        <MetricError label="Pending tasks" message={tasksError} onRetry={loadTasks} />
+                        <MetricError label="Due soon" message={tasksError} onRetry={loadTasks} />
+                    </>
+                ) : (
+                    <>
+                        <MetricCard label="Pending tasks" value={pendingTasks.length} hint="Tasks awaiting completion" />
+                        <MetricCard label="Due soon" value={dueSoonCount} hint="Within the next 72 hours" />
+                    </>
+                )}
+                {dashboard?.overdueCount == null && tasksLoading ? (
+                    <MetricLoading label="overdue tasks" />
+                ) : !overdueAvailable ? (
+                    <MetricError label="Overdue" message={tasksError} onRetry={loadTasks} />
+                ) : (
+                    <MetricCard
+                        label="Overdue"
+                        value={<span className={overdueCount > 0 ? 'text-danger' : 'text-mint'}>{overdueCount}</span>}
+                        hint={overdueCount > 0 ? 'Needs attention' : 'No overdue tasks'}
+                    />
+                )}
+                <MetricCard
+                    label="Plan progress"
+                    value={planProgress === null ? '—' : `${Math.round(planProgress)}%`}
+                    hint={roadmapProgress !== null
+                        ? `Active roadmap${activeRoadmap?.goal ? ` · ${activeRoadmap.goal}` : ''}`
+                        : readinessScore != null
+                            ? 'Placement readiness score'
+                            : 'No active roadmap or readiness score'}
+                />
+            </section>
+
+            <section className="grid min-w-0 gap-4 md:grid-cols-2 lg:grid-cols-3" aria-label="Plan and focus">
+                <WeekPlanCard
+                    capacity={capacity}
+                    isLoading={capacityLoading}
+                    error={capacityError}
+                    onRetry={loadCapacity}
+                />
+                <UpcomingDeadlinesCard
+                    tasks={tasks}
+                    isLoading={tasksLoading}
+                    error={tasksError}
+                    now={now}
+                    onRetry={loadTasks}
+                />
+                <FocusInsightsCard
+                    tasks={tasks}
+                    tasksLoading={tasksLoading}
+                    tasksError={tasksError}
+                    completedThisWeek={completedThisWeek}
+                    plannedHours={totalPlannedHours}
+                    capacityLoading={capacityLoading}
+                    capacityError={capacityError}
+                    roadmapProgress={roadmapProgress}
+                />
+            </section>
+
+            <section className="grid min-w-0 gap-4 lg:grid-cols-2" aria-label="Learning and placement">
+                <ContinueLearningCard
+                    roadmap={activeRoadmap}
+                    detail={roadmapDetail}
+                    isLoading={activeRoadmapLoading}
+                    detailLoading={roadmapDetailLoading || Boolean(activeRoadmap && !roadmapDetail && !roadmapDetailError)}
+                    today={todayKey}
+                    error={roadmapDetailError || (roadmapsError && !activeRoadmap ? roadmapsError : '')}
+                    onRetry={activeRoadmap
+                        ? () => setRoadmapDetailRetry((value) => value + 1)
+                        : loadRoadmaps}
+                />
+                <PlacementReadinessCard
+                    readiness={readiness || (dashboard?.readinessScore != null ? { score: dashboard.readinessScore } : null)}
+                    isLoading={readinessLoading}
+                    error={readinessError}
+                    onRetry={loadReadiness}
+                />
+            </section>
+
+            {showConflictCard && (
+                <ConflictCard
+                    conflicts={conflicts}
+                    isLoading={conflictsLoading}
+                    error={conflictsError}
+                    onRetry={loadConflicts}
+                />
+            )}
         </div>
     );
 }
