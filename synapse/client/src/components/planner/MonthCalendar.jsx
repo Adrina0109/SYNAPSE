@@ -47,11 +47,11 @@ const taskDeadlineKey = (deadline) => {
 };
 
 const taskUrgencyClass = (task) => {
-    if (task.status === 'completed') return 'bg-ink/5 text-ink-faint line-through';
+    if (task.status === 'completed') return 'bg-surface-2 text-text-faint line-through';
     const remainingHours = (new Date(task.deadline).getTime() - Date.now()) / 3600000;
-    if (remainingHours <= 24) return 'bg-signal/10 text-signal';
-    if (remainingHours <= 72) return 'bg-amber-500/10 text-amber-800';
-    return 'bg-forest/5 text-forest';
+    if (remainingHours <= 24) return 'bg-danger/10 text-danger';
+    if (remainingHours <= 72) return 'bg-warning/10 text-warning';
+    return 'bg-mint/10 text-mint';
 };
 
 const formatCategory = (category = 'personal') => category.replaceAll('_', ' ');
@@ -144,23 +144,23 @@ export default function MonthCalendar({ tasks = [] }) {
                                 aria-pressed={isSelected}
                                 aria-label={`${key}${isToday ? ', today' : ''}${dayTasks.length ? `, ${dayTasks.length} ${dayTasks.length === 1 ? 'task' : 'tasks'}` : ', no tasks'}`}
                                 onClick={() => setSelectedDate(key)}
-                                className={`relative flex min-h-[4.25rem] min-w-0 flex-col items-stretch overflow-hidden border px-1 py-1 text-left transition-shadow sm:min-h-28 sm:p-2 ${inMonth ? 'border-ink/10 bg-paper text-ink' : 'border-ink/5 bg-paper-dark/50 text-ink-faint'} ${isSelected ? 'ring-2 ring-ink ring-offset-1 ring-offset-paper' : ''} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink`}
+                                className={`relative flex min-h-[4.25rem] min-w-0 flex-col items-stretch overflow-hidden rounded-lg border px-1 py-1 text-left transition-colors sm:min-h-28 sm:p-2 ${inMonth ? 'border-border bg-surface text-text' : 'border-border/50 bg-surface-2/50 text-text-faint'} ${isSelected ? 'border-accent bg-accent-soft ring-2 ring-accent ring-offset-1 ring-offset-bg' : 'hover:border-border-strong'} focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus`}
                             >
                                 <span className="flex items-center justify-between gap-1">
-                                    <span className={`font-mono text-[10px] sm:text-xs ${isToday ? 'font-bold text-signal' : ''}`}>
+                                    <span className={`font-mono text-[10px] sm:text-xs ${isToday ? 'font-bold text-accent' : ''}`}>
                                         {Number(key.slice(-2))}
                                     </span>
                                     {isToday && (
-                                        <span className="hidden sm:inline font-mono text-[8px] tracking-wide text-signal">TODAY</span>
+                                        <span className="hidden sm:inline font-mono text-[8px] tracking-wide text-accent">TODAY</span>
                                     )}
                                     {dayTasks.length > 0 && (
-                                        <span className="ml-auto rounded-sm bg-ink px-1 py-0.5 font-mono text-[8px] leading-none text-paper sm:hidden">
+                                        <span className="ml-auto rounded-sm bg-accent px-1 py-0.5 font-mono text-[8px] leading-none text-white sm:hidden">
                                             {dayTasks.length}
                                         </span>
                                     )}
                                 </span>
                                 {isToday && (
-                                    <span className="mt-1 font-mono text-[7px] leading-none text-signal sm:hidden">TODAY</span>
+                                    <span className="mt-1 font-mono text-[7px] leading-none text-accent sm:hidden">TODAY</span>
                                 )}
                                 <span className="hidden sm:block min-w-0 space-y-1 mt-1">
                                     {dayTasks.slice(0, 2).map((task) => (
@@ -173,7 +173,7 @@ export default function MonthCalendar({ tasks = [] }) {
                                         </span>
                                     ))}
                                     {dayTasks.length > 2 && (
-                                        <span className="block font-mono text-[9px] text-ink-muted">+{dayTasks.length - 2} more</span>
+                                        <span className="block font-mono text-[9px] text-text-muted">+{dayTasks.length - 2} more</span>
                                     )}
                                 </span>
                             </button>
@@ -182,25 +182,25 @@ export default function MonthCalendar({ tasks = [] }) {
                 </div>
             </div>
 
-            <div className="card-hard p-4 sm:p-5 mt-4" aria-live="polite">
+            <div className="card-hard mt-4 p-4 sm:p-5" aria-live="polite">
                 <p className="section-label mb-1">Selected day</p>
-                <h3 className="font-display text-lg font-semibold text-ink mb-3">{formatDayKey(selectedDate)}</h3>
+                <h3 className="mb-3 font-display text-lg font-semibold text-text">{formatDayKey(selectedDate)}</h3>
                 {selectedTasks.length === 0 ? (
-                    <p className="font-body text-sm text-ink-muted">No task deadlines on this day.</p>
+                    <p className="font-body text-sm text-text-muted">No task deadlines on this day.</p>
                 ) : (
                     <ul className="space-y-3">
                         {selectedTasks.map((task) => (
-                            <li key={task._id} className={`border border-ink/10 p-3 sm:p-4 ${task.status === 'completed' ? 'opacity-60' : ''}`}>
+                            <li key={task._id} className={`rounded-lg border border-border bg-surface-2/40 p-3 sm:p-4 ${task.status === 'completed' ? 'opacity-60' : ''}`}>
                                 <div className="flex flex-wrap items-start justify-between gap-2">
-                                    <p className={`font-body text-sm font-medium text-ink ${task.status === 'completed' ? 'line-through' : ''}`}>
+                                    <p className={`font-body text-sm font-medium text-text ${task.status === 'completed' ? 'line-through' : ''}`}>
                                         {task.title}
                                     </p>
-                                    <span className="font-mono text-xs text-ink-muted shrink-0">{formatHours(task.estimatedHours)}</span>
+                                    <span className="shrink-0 font-mono text-xs text-text-muted">{formatHours(task.estimatedHours)}</span>
                                 </div>
                                 <div className="flex flex-wrap items-center gap-2 mt-2">
                                     <span className="tag-pill-outline">{formatCategory(task.category)}</span>
                                     <span className="tag-pill-outline">{formatPriority(task.priority)}</span>
-                                    <span className={`tag-pill ${task.status === 'completed' ? 'bg-ink-faint' : 'bg-forest'}`}>
+                                    <span className={`tag-pill ${task.status === 'completed' ? 'bg-surface-2 text-text-faint' : 'bg-mint/10 text-mint'}`}>
                                         {formatStatus(task.status)}
                                     </span>
                                 </div>

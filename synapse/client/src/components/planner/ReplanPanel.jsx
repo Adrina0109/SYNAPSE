@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../../lib/api.js';
 import { formatDayKey, formatHours } from './plannerHelpers.js';
+import Card from '../ui/Card.jsx';
+import StatusBadge from '../ui/StatusBadge.jsx';
 
 const TASK_MOVE_REASON = {
     made_room: 'to make room',
@@ -89,16 +91,16 @@ export default function ReplanPanel({ onApplied = () => {}, autoPreview = false 
     return (
         <section className="space-y-4" aria-labelledby="replan-heading">
             {successMessage && (
-                <div className="border border-forest/30 bg-forest/10 px-4 py-3 font-body text-sm text-forest" role="status" aria-live="polite">
+                <div className="rounded-xl border border-mint/25 bg-mint/10 px-4 py-3 font-body text-sm text-mint" role="status" aria-live="polite">
                     {successMessage}
                 </div>
             )}
 
             {mode === 'idle' && (
-                <div className="card-hard p-4 sm:p-6">
+                <Card className="p-4 sm:p-6">
                     <p className="section-label mb-1">Planner tools</p>
-                    <h2 id="replan-heading" className="font-display text-xl font-semibold text-ink">Make room</h2>
-                    <p className="font-body text-sm leading-relaxed text-ink-muted mt-2 max-w-2xl">
+                    <h2 id="replan-heading" className="font-display text-xl font-semibold text-text">Make room</h2>
+                    <p className="mt-2 max-w-2xl font-body text-sm leading-relaxed text-text-muted">
                         Moves flexible work later so urgent deadlines get the free hours. You see every change before anything is saved.
                     </p>
                     <button
@@ -109,73 +111,77 @@ export default function ReplanPanel({ onApplied = () => {}, autoPreview = false 
                     >
                         {isPending ? 'Loading preview...' : 'Preview re-plan'}
                     </button>
-                </div>
+                </Card>
             )}
 
             {mode === 'error' && (
-                <div className="card-hard p-4 sm:p-6" role="alert">
-                    <h2 id="replan-heading" className="font-display text-xl font-semibold text-ink">Could not complete re-plan</h2>
-                    <p className="font-body text-sm text-signal mt-2">{errorMessage}</p>
-                    <div className="flex flex-wrap gap-2 mt-4">
-                        <button type="button" onClick={previewPlan} disabled={isPending} className="btn-primary text-sm px-4 py-2">
-                            {isPending ? 'Loading...' : 'Try again'}
-                        </button>
-                        <button type="button" onClick={closePreview} disabled={isPending} className="btn-secondary text-sm px-4 py-2">
-                            Close
-                        </button>
+                <Card className="p-4 sm:p-6">
+                    <div role="alert">
+                        <h2 id="replan-heading" className="font-display text-xl font-semibold text-text">Could not complete re-plan</h2>
+                        <p className="mt-2 font-body text-sm text-danger">{errorMessage}</p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <button type="button" onClick={previewPlan} disabled={isPending} className="btn-primary text-sm px-4 py-2">
+                                {isPending ? 'Loading...' : 'Try again'}
+                            </button>
+                            <button type="button" onClick={closePreview} disabled={isPending} className="btn-secondary text-sm px-4 py-2">
+                                Close
+                            </button>
+                        </div>
                     </div>
-                </div>
+                </Card>
             )}
 
             {mode === 'stale' && (
-                <div className="card-hard p-4 sm:p-6" role="alert">
-                    <h2 id="replan-heading" className="font-display text-xl font-semibold text-ink">Preview is out of date</h2>
-                    <p className="font-body text-sm text-signal mt-2">{errorMessage}</p>
-                    <div className="flex flex-wrap gap-2 mt-4">
-                        <button type="button" onClick={previewPlan} disabled={isPending} className="btn-primary text-sm px-4 py-2">
-                            {isPending ? 'Loading preview...' : 'Preview again'}
-                        </button>
-                        <button type="button" onClick={closePreview} disabled={isPending} className="btn-secondary text-sm px-4 py-2">
-                            Cancel
-                        </button>
+                <Card className="p-4 sm:p-6">
+                    <div role="alert">
+                        <h2 id="replan-heading" className="font-display text-xl font-semibold text-text">Preview is out of date</h2>
+                        <p className="mt-2 font-body text-sm text-danger">{errorMessage}</p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <button type="button" onClick={previewPlan} disabled={isPending} className="btn-primary text-sm px-4 py-2">
+                                {isPending ? 'Loading preview...' : 'Preview again'}
+                            </button>
+                            <button type="button" onClick={closePreview} disabled={isPending} className="btn-secondary text-sm px-4 py-2">
+                                Cancel
+                            </button>
+                        </div>
                     </div>
-                </div>
+                </Card>
             )}
 
             {mode === 'preview' && plan && (
-                <div className="card-hard p-4 sm:p-6">
+                <Card className="p-4 sm:p-6">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                             <p className="section-label mb-1">Review before saving</p>
-                            <h2 id="replan-heading" className="font-display text-xl font-semibold text-ink">Re-plan preview</h2>
+                            <h2 id="replan-heading" className="font-display text-xl font-semibold text-text">Re-plan preview</h2>
                         </div>
-                        {!plan.hasChanges && <span className="tag-pill bg-forest text-paper">Fits</span>}
+                        {!plan.hasChanges && <StatusBadge tone="success" label="Fits" />}
                     </div>
 
                     {!plan.hasChanges ? (
                         <div className="mt-4">
-                            <p className="font-body text-sm text-ink-muted">Your plan already fits. Nothing needs to move.</p>
+                            <p className="font-body text-sm text-text-muted">Your plan already fits. Nothing needs to move.</p>
                             <button type="button" onClick={closePreview} disabled={isPending} className="btn-secondary text-sm px-4 py-2 mt-4">
                                 Close
                             </button>
                         </div>
                     ) : (
                         <>
-                            <p className="font-body text-sm leading-relaxed text-ink-muted mt-3">
+                            <p className="mt-3 font-body text-sm leading-relaxed text-text-muted">
                                 Moves {formatHours(hoursMoved)} of task work across {changesCount} tasks and shifts {roadmapDaysMoved} roadmap days.
                             </p>
 
                             {plan.taskChanges?.length > 0 && (
                                 <div className="mt-6">
-                                    <h3 className="font-display text-lg font-semibold text-ink mb-3">Task changes</h3>
+                                    <h3 className="mb-3 font-display text-lg font-semibold text-text">Task changes</h3>
                                     <ul className="space-y-3">
                                         {plan.taskChanges.map((task) => (
-                                            <li key={task.taskId} className="border border-ink/10 p-3 sm:p-4">
-                                                <h4 className="font-body text-sm font-medium text-ink">{task.title}</h4>
-                                                <ul className="space-y-2 mt-2">
+                                            <li key={task.taskId} className="rounded-lg border border-border bg-surface-2/40 p-3 sm:p-4">
+                                                <h4 className="font-body text-sm font-medium text-text">{task.title}</h4>
+                                                <ul className="mt-2 space-y-2">
                                                     {task.moves.map((move, index) => (
                                                         <li key={`${move.from}-${move.to}-${index}`} className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                                            <span className="font-mono text-xs text-ink-muted">
+                                                            <span className="font-mono text-xs text-text-muted">
                                                                 {formatDayKey(move.from)} {'->'} {formatDayKey(move.to)} · {formatHours(move.hours)}
                                                             </span>
                                                             <span className="tag-pill-outline">{TASK_MOVE_REASON[move.reason] ?? move.reason}</span>
@@ -190,13 +196,13 @@ export default function ReplanPanel({ onApplied = () => {}, autoPreview = false 
 
                             {plan.roadmapChanges?.length > 0 && (
                                 <div className="mt-6">
-                                    <h3 className="font-display text-lg font-semibold text-ink mb-3">Roadmap changes</h3>
+                                    <h3 className="mb-3 font-display text-lg font-semibold text-text">Roadmap changes</h3>
                                     <ul className="space-y-2">
                                         {plan.roadmapChanges.map((change, index) => (
-                                            <li key={`${change.roadmapId}-${change.dayNumber}-${index}`} className="border-b border-ink/10 pb-2">
-                                                <p className="font-body text-sm text-ink">{change.goal}</p>
+                                            <li key={`${change.roadmapId}-${change.dayNumber}-${index}`} className="border-b border-border pb-2">
+                                                <p className="font-body text-sm text-text">{change.goal}</p>
                                                 <div className="flex flex-wrap items-center gap-2 mt-1">
-                                                    <span className="font-mono text-xs text-ink-muted">
+                                                    <span className="font-mono text-xs text-text-muted">
                                                         Day {change.dayNumber}: {formatDayKey(change.oldDate)} {'->'} {formatDayKey(change.newDate)}
                                                     </span>
                                                     <span className="tag-pill-outline">{ROADMAP_MOVE_REASON[change.reason] ?? change.reason}</span>
@@ -210,18 +216,21 @@ export default function ReplanPanel({ onApplied = () => {}, autoPreview = false 
                             {plan.summary?.roadmapEndDates
                                 ?.filter((endDate) => endDate.oldEnd !== endDate.newEnd)
                                 .map((endDate) => (
-                                    <p key={endDate.roadmapId} className="border-l-2 border-forest bg-forest/5 px-3 py-2 font-body text-sm text-forest mt-4">
+                                    <p key={endDate.roadmapId} className="mt-4 rounded-lg border-l-2 border-mint bg-mint/10 px-3 py-2 font-body text-sm text-mint">
                                         Your roadmap now ends on {formatDayKey(endDate.newEnd)} (was {formatDayKey(endDate.oldEnd)}).
                                     </p>
                                 ))}
 
                             {plan.shortfalls?.length > 0 && (
-                                <div className="border-2 border-signal bg-signal/5 p-4 mt-6" role="status">
-                                    <h3 className="font-display text-lg font-semibold text-signal">Not enough time</h3>
-                                    <p className="font-body text-sm leading-relaxed text-ink mt-2">
+                                <div className="mt-6 rounded-xl border border-danger/30 bg-danger/5 p-4" role="status">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="font-display text-lg font-semibold text-text">Not enough time</h3>
+                                        <StatusBadge tone="danger" label="Capacity shortfall" />
+                                    </div>
+                                    <p className="mt-2 font-body text-sm leading-relaxed text-text">
                                         You are short by {formatHours(plan.summary?.shortfallHours ?? plan.shortfalls.reduce((sum, item) => sum + item.hoursOver, 0))} on {plan.shortfalls.map((item) => formatDayKey(item.date)).join(', ')}. The planner cannot create hours. Consider asking for an extension, trimming a task estimate, or pausing a roadmap.
                                     </p>
-                                    <ul className="list-disc pl-5 font-body text-sm text-ink-muted mt-2">
+                                    <ul className="mt-2 list-disc pl-5 font-body text-sm text-text-muted">
                                         {[...new Set(plan.shortfalls.flatMap((item) => item.titles || []))].map((title) => (
                                             <li key={title}>{title}</li>
                                         ))}
@@ -230,10 +239,10 @@ export default function ReplanPanel({ onApplied = () => {}, autoPreview = false 
                             )}
 
                             {errorMessage && (
-                                <p className="font-body text-sm text-signal mt-4" role="alert">{errorMessage}</p>
+                                <p className="mt-4 font-body text-sm text-danger" role="alert">{errorMessage}</p>
                             )}
 
-                            <div className="flex flex-wrap gap-2 mt-6">
+                            <div className="mt-6 flex flex-wrap gap-2">
                                 <button
                                     type="button"
                                     onClick={applyPlan}
@@ -248,7 +257,7 @@ export default function ReplanPanel({ onApplied = () => {}, autoPreview = false 
                             </div>
                         </>
                     )}
-                </div>
+                </Card>
             )}
         </section>
     );
