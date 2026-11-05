@@ -94,6 +94,8 @@ export const applyReplan = async (userId, fingerprint) => {
     let roadmapDaysUpdated = 0;
     try {
         await session.withTransaction(async () => {
+            tasksUpdated = 0;
+            roadmapDaysUpdated = 0;
             for (const { taskId, plan: workPlan } of plan.newTaskPlans) {
                 const result = await Task.updateOne(
                     { _id: taskId, user: userId, status: { $ne: 'completed' } },
