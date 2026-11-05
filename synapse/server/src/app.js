@@ -16,6 +16,7 @@ import assistantRoutes from './routes/assistantRoutes.js';
 import roadmapRoutes from './routes/roadmapRoutes.js';
 import plannerRoutes from './routes/plannerRoutes.js';
 import placementRoutes from './routes/placementRoutes.js';
+import publicRoutes from './routes/publicRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 const app = express();
@@ -47,6 +48,7 @@ app.use('/api/assistant', assistantRoutes);
 app.use('/api/roadmaps', roadmapRoutes);
 app.use('/api/planner', plannerRoutes);
 app.use('/api/placement', placementRoutes);
+app.use('/api/public', publicRoutes);
 
 // 404 handler
 app.use((req, res) => {

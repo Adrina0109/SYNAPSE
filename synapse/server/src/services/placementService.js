@@ -32,7 +32,7 @@ export const weekKeyFor = (date = new Date()) => {
 export const loadInputs = async (userId, now = new Date()) => {
     const [user, roadmaps, tasks, checklist] = await Promise.all([
         User.findOne({ _id: userId })
-            .select('cgpa backlogs targetRole skills department')
+            .select('name cgpa backlogs targetRole skills department')
             .lean(),
         Roadmap.find({
             user: userId,
@@ -61,6 +61,7 @@ export const loadInputs = async (userId, now = new Date()) => {
     return {
         now,
         user: {
+            name: user.name ?? '',
             cgpa: user.cgpa ?? null,
             backlogs: user.backlogs ?? null,
             targetRole: user.targetRole ?? null,
@@ -87,6 +88,37 @@ export const loadInputs = async (userId, now = new Date()) => {
             nextUnticked: items.find((item) => !tickedKeys.has(item.key)) ?? null,
             mockRating: latestMockSession?.rating ?? null,
         },
+    };
+};
+
+export const buildShareSummary = async (userId, includeAcademics, now = new Date()) => {
+    const inputs = await loadInputs(userId, now);
+    const readiness = computeReadiness(inputs);
+    const uniqueSorted = (skills) => [...new Set(skills.map(normalizeSkill).filter(Boolean))].sort();
+    const verifiedSkills = uniqueSorted(inputs.roadmaps.flatMap((roadmap) => roadmap.verifiedSkills));
+    const declaredSkills = uniqueSorted(inputs.user.declaredSkills);
+
+    return {
+        name: inputs.user.name,
+        department: inputs.user.department,
+        targetRole: inputs.user.targetRole,
+        score: readiness.score,
+        breakdown: readiness.breakdown.map(({ factor, weight, value, contribution }) => ({
+            factor,
+            weight,
+            value,
+            contribution,
+        })),
+        skills: {
+            verified: verifiedSkills,
+            declared: declaredSkills,
+        },
+        // Roadmap currently has no persisted final-quiz result to verify.
+        verifiedRoadmaps: [],
+        academics: includeAcademics
+            ? { cgpa: inputs.user.cgpa, backlogs: inputs.user.backlogs }
+            : null,
+        generatedAt: now,
     };
 };
 

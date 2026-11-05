@@ -17,6 +17,7 @@ import {
     resumeToRoadmap,
     toggleChecklistHandler,
 } from '../controllers/placementController.js';
+import { createShare, revokeShare } from '../controllers/shareController.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -88,6 +89,8 @@ router.post('/resume-gap', requireRole('student'), resumeRateLimiter, handleResu
 router.post('/resume-gap/to-roadmap', requireRole('student'), resumeRateLimiter, resumeToRoadmap);
 
 router.get('/readiness', requireRole('student'), getReadinessHandler);
+router.post('/share', requireRole('student'), createShare);
+router.delete('/share', requireRole('student'), revokeShare);
 router.get('/readiness/whatif/:roadmapId', requireRole('student'), getWhatIfHandler);
 router.get('/readiness/history', requireRole('student'), getHistoryHandler);
 router.get('/checklist', requireRole('student'), getChecklistHandler);
