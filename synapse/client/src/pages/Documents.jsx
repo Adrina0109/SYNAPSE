@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 
 const CATEGORIES = [
@@ -19,8 +17,6 @@ const getErrorMessage = (error, fallback) => {
 };
 
 export default function Documents() {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
     const formRef = useRef(null);
     const [documents, setDocuments] = useState([]);
     const [title, setTitle] = useState('');
@@ -114,26 +110,9 @@ export default function Documents() {
         }
     };
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
-    };
-
     return (
         <div className="min-h-screen bg-paper">
-            <nav className="border-b border-ink/10 px-4 sm:px-6 lg:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                    <Link to={user?.role === 'admin' ? '/admin' : '/mentor'} className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</Link>
-                    <span className="font-mono text-xs text-ink-faint border-l border-ink/15 pl-3">Documents</span>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
-                    <span className="hidden sm:block font-body text-sm text-ink-muted">{user?.name}</span>
-                    <Link to={user?.role === 'admin' ? '/admin' : '/mentor'} className="btn-ghost text-sm">Dashboard</Link>
-                    <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
-                </div>
-            </nav>
-
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
+            <div className="mx-auto w-full max-w-5xl">
                 <header className="mb-8">
                     <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Knowledge library</p>
                     <h1 className="font-display text-4xl sm:text-5xl font-bold text-ink">Documents</h1>
@@ -279,7 +258,7 @@ export default function Documents() {
                         </div>
                     )}
                 </section>
-            </main>
+            </div>
         </div>
     );
 }

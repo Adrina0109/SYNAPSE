@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
 import TaskForm from '../components/tasks/TaskForm.jsx';
 import TaskItem from '../components/tasks/TaskItem.jsx';
@@ -16,7 +15,6 @@ const STATUSES = [
 ];
 
 export default function Tasks() {
-    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [tasks, setTasks] = useState([]);
@@ -118,26 +116,9 @@ export default function Tasks() {
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
-    };
-
     return (
         <div className="min-h-screen bg-paper">
-            <nav className="border-b border-ink/10 px-4 sm:px-6 lg:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                    <Link to="/student" className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</Link>
-                    <span className="font-mono text-xs text-ink-faint border-l border-ink/15 pl-3">Tasks</span>
-                </div>
-                <div className="flex items-center gap-2 sm:gap-4">
-                    <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
-                    <Link to="/student" className="btn-ghost text-sm">Dashboard</Link>
-                    <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
-                </div>
-            </nav>
-
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
+            <div className="mx-auto w-full max-w-5xl">
                 <header className="mb-8">
                     <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Your work</p>
                     <h1 className="font-display text-4xl sm:text-5xl font-bold text-ink">Tasks</h1>
@@ -229,7 +210,7 @@ export default function Tasks() {
                         </div>
                     )}
                 </section>
-            </main>
+            </div>
         </div>
     );
 }

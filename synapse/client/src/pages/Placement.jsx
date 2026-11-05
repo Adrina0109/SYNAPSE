@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 import BreakdownBars from '../components/placement/BreakdownBars.jsx';
 import NextBestAction from '../components/placement/NextBestAction.jsx';
@@ -12,22 +11,7 @@ import ResumeGap from '../components/placement/ResumeGap.jsx';
 import DriveList from '../components/placement/DriveList.jsx';
 import ShareCard from '../components/placement/ShareCard.jsx';
 
-const PageNav = ({ user, onSignOut }) => (
-    <nav className="border-b border-ink/10 px-4 py-4 flex flex-wrap items-center justify-between gap-3 sm:px-6 lg:px-10">
-        <div className="flex min-w-0 items-center gap-3">
-            <Link to="/student" className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</Link>
-            <span className="font-mono text-xs text-ink-faint border-l border-ink/15 pl-3">Placement</span>
-        </div>
-        <div className="flex items-center gap-1 sm:gap-3">
-            <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
-            <Link to="/student" className="btn-ghost text-sm">Dashboard</Link>
-            <button type="button" onClick={onSignOut} className="btn-ghost text-sm">Sign out</button>
-        </div>
-    </nav>
-);
-
 export default function Placement() {
-    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [readiness, setReadiness] = useState(null);
     const [history, setHistory] = useState(null);
@@ -105,11 +89,6 @@ export default function Placement() {
         };
     }, [selectedRoadmapId]);
 
-    const handleSignOut = async () => {
-        await logout();
-        navigate('/');
-    };
-
     const handleResumeRoadmapPreview = async (missingSkills) => {
         const { data } = await api.post('/placement/resume-gap/to-roadmap', { missingSkills });
         navigate('/roadmaps', {
@@ -144,8 +123,7 @@ export default function Placement() {
 
     return (
         <div className="min-h-screen bg-paper">
-            <PageNav user={user} onSignOut={handleSignOut} />
-            <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+            <div className="mx-auto w-full max-w-6xl">
                 <header className="mb-7 sm:mb-8">
                     <p className="mb-2 font-mono text-xs tracking-widest uppercase text-signal">Your placement path</p>
                     <h1 className="font-display text-4xl font-bold text-ink sm:text-5xl">Placement readiness</h1>
@@ -242,7 +220,7 @@ export default function Placement() {
                         <ShareCard />
                     </div>
                 )}
-            </main>
+            </div>
         </div>
     );
 }

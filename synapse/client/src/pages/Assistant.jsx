@@ -1,6 +1,4 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 
 const SUGGESTED_QUESTIONS = [
@@ -16,8 +14,6 @@ const requestErrorMessage = (error) => {
 };
 
 export default function Assistant() {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
     const [messages, setMessages] = useState([]);
     const [question, setQuestion] = useState('');
     const [isAsking, setIsAsking] = useState(false);
@@ -55,26 +51,9 @@ export default function Assistant() {
         askQuestion(question);
     };
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
-    };
-
     return (
         <div className="min-h-screen bg-paper">
-            <nav className="border-b border-ink/10 px-4 sm:px-6 lg:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                    <Link to="/student" className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</Link>
-                    <span className="font-mono text-xs text-ink-faint border-l border-ink/15 pl-3">Assistant</span>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
-                    <span className="hidden sm:block font-body text-sm text-ink-muted">{user?.name}</span>
-                    <Link to="/student" className="btn-ghost text-sm">Dashboard</Link>
-                    <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
-                </div>
-            </nav>
-
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
+            <div className="mx-auto w-full max-w-4xl">
                 <header className="mb-6 sm:mb-8">
                     <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Grounded in your documents</p>
                     <h1 className="font-display text-4xl sm:text-5xl font-bold text-ink">Ask the assistant</h1>
@@ -189,7 +168,7 @@ export default function Assistant() {
                         </form>
                     </div>
                 </section>
-            </main>
+            </div>
         </div>
     );
 }

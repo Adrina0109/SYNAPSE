@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import Navbar from '../components/Navbar.jsx';
 import api from '../lib/api.js';
 
 const formatDate = (date) => {
@@ -87,8 +86,7 @@ export default function AnnouncementInbox() {
 
     return (
         <div className="min-h-screen bg-paper">
-            <Navbar />
-            <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+            <div className="mx-auto w-full max-w-5xl">
                 <header className="mb-8">
                     <p className="section-label mb-2">For you</p>
                     <h1 className="font-display text-4xl font-bold text-ink sm:text-5xl">Announcement inbox</h1>
@@ -160,7 +158,7 @@ export default function AnnouncementInbox() {
                         <button type="button" onClick={loadInbox} className="btn-secondary text-sm">Try again</button>
                     </div>
                 )}
-            </main>
+            </div>
         </div>
     );
 }

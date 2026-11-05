@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import Navbar from '../components/Navbar.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 
@@ -105,8 +104,7 @@ export default function Announcements() {
 
     return (
         <div className="min-h-screen bg-paper">
-            <Navbar />
-            <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+            <div className="mx-auto w-full max-w-5xl">
                 <header className="mb-8">
                     <p className="section-label mb-2">Share with students</p>
                     <h1 className="font-display text-4xl font-bold text-ink sm:text-5xl">Announcements</h1>
@@ -215,7 +213,7 @@ export default function Announcements() {
                         </div>
                     )}
                 </section>
-            </main>
+            </div>
         </div>
     );
 }

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Navbar from '../components/Navbar.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 
@@ -157,8 +156,7 @@ export default function MentorDashboard() {
 
     return (
         <div className="min-h-screen bg-paper">
-            <Navbar />
-            <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+            <div className="mx-auto w-full max-w-6xl">
                 <header className="mb-6">
                     <p className="section-label mb-2 text-signal">Mentor view</p>
                     <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">Your batch.</h1>
@@ -342,7 +340,7 @@ export default function MentorDashboard() {
                         {students.length === 0 && !studentsLoading && <p className="font-body text-xs text-ink-faint sm:col-span-2">Assign students before broadcasting a task.</p>}
                     </form>
                 </section>
-            </main>
+            </div>
 
             {selectedStudent && (
                 <div className="fixed inset-0 z-40 bg-ink/40" role="presentation" onMouseDown={(event) => {

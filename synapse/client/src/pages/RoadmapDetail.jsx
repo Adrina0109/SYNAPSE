@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
+import { Link, useParams } from 'react-router-dom';
 import api from '../lib/api.js';
 import CertificationBanner from '../components/roadmaps/CertificationBanner.jsx';
 import {
@@ -13,8 +12,6 @@ import {
 
 export default function RoadmapDetail() {
     const { id } = useParams();
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
     const [roadmap, setRoadmap] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
@@ -82,29 +79,9 @@ export default function RoadmapDetail() {
         }
     };
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
-    };
-
-    const renderNavigation = () => (
-        <nav className="border-b border-ink/10 px-4 sm:px-6 lg:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-                <Link to="/student" className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</Link>
-                <span className="font-mono text-xs text-ink-faint border-l border-ink/15 pl-3">Roadmaps</span>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-4">
-                <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
-                <Link to="/roadmaps" className="btn-ghost text-sm">All roadmaps</Link>
-                <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
-            </div>
-        </nav>
-    );
-
     return (
         <div className="min-h-screen bg-paper">
-            {renderNavigation()}
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
+            <div className="mx-auto w-full max-w-5xl">
                 {isLoading ? (
                     <div className="card-hard p-6 font-mono text-xs text-ink-faint" role="status">Loading roadmap…</div>
                 ) : loadError ? (
@@ -287,7 +264,7 @@ export default function RoadmapDetail() {
                         <Link to="/roadmaps" className="btn-secondary mt-4">Back to roadmaps</Link>
                     </div>
                 )}
-            </main>
+            </div>
         </div>
     );
 }

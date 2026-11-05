@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
 import { dayOfMonth, formatDayKey, formatHours, LOAD_META, SEVERITY_LABEL, weekdayShort } from '../components/planner/plannerHelpers.js';
 import ReplanPanel from '../components/planner/ReplanPanel.jsx';
@@ -15,22 +14,7 @@ const SummaryCard = ({ value, label }) => (
     </div>
 );
 
-const PageNav = ({ user, onSignOut }) => (
-    <nav className="border-b border-ink/10 px-4 sm:px-6 lg:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-            <Link to="/student" className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</Link>
-            <span className="font-mono text-xs text-ink-faint border-l border-ink/15 pl-3">Planner</span>
-        </div>
-        <div className="flex items-center gap-1 sm:gap-3">
-            <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
-            <Link to="/student" className="btn-ghost text-sm">Dashboard</Link>
-            <button type="button" onClick={onSignOut} className="btn-ghost text-sm">Sign out</button>
-        </div>
-    </nav>
-);
-
 export default function Planner() {
-    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [autoPreview] = useState(() => Boolean(location.state?.autoPreview));
@@ -76,11 +60,6 @@ export default function Planner() {
         }
     }, [location.pathname, location.state, navigate]);
 
-    const handleSignOut = async () => {
-        await logout();
-        navigate('/');
-    };
-
     const days = capacity?.days || [];
     const selectedDay = days.find((day) => day.date === selectedDate)
         || days.find((day) => day.date === capacity?.today)
@@ -93,9 +72,7 @@ export default function Planner() {
 
     return (
         <div className="min-h-screen bg-paper">
-            <PageNav user={user} onSignOut={handleSignOut} />
-
-            <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
+            <div className="mx-auto w-full max-w-6xl">
                 <header className="mb-7 sm:mb-8">
                     <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Plan with clarity</p>
                     <h1 className="font-display text-4xl sm:text-5xl font-bold text-ink">Planner</h1>
@@ -283,7 +260,7 @@ export default function Planner() {
                         </div>
                     </>
                 )}
-            </main>
+            </div>
         </div>
     );
 }

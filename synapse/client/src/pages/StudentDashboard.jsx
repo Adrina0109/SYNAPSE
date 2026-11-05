@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Navbar from '../components/Navbar.jsx';
 import ScoreGauge from '../components/placement/ScoreGauge.jsx';
 import TaskForm from '../components/tasks/TaskForm.jsx';
 import TaskItem from '../components/tasks/TaskItem.jsx';
@@ -177,8 +176,7 @@ export default function StudentDashboard() {
 
     return (
         <div className="min-h-screen bg-paper">
-            <Navbar />
-            <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-10">
+            <div className="mx-auto w-full max-w-6xl">
                 <header className="mb-6 sm:mb-8">
                     <p className="section-label mb-2 text-signal">Student dashboard</p>
                     <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">
@@ -393,7 +391,7 @@ export default function StudentDashboard() {
                         </div>
                     )}
                 </section>
-            </main>
+            </div>
         </div>
     );
 }

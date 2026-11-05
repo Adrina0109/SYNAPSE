@@ -12,7 +12,7 @@ import {
 } from '../components/roadmaps/roadmapHelpers.js';
 
 export default function Roadmaps() {
-    const { user, logout } = useAuth();
+    const { user } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
     const [roadmaps, setRoadmaps] = useState([]);
@@ -99,26 +99,9 @@ export default function Roadmaps() {
         }
     };
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
-    };
-
     return (
         <div className="min-h-screen bg-paper">
-            <nav className="border-b border-ink/10 px-4 sm:px-6 lg:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                    <Link to="/student" className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</Link>
-                    <span className="font-mono text-xs text-ink-faint border-l border-ink/15 pl-3">Roadmaps</span>
-                </div>
-                <div className="flex items-center gap-2 sm:gap-4">
-                    <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
-                    <Link to="/student" className="btn-ghost text-sm">Dashboard</Link>
-                    <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
-                </div>
-            </nav>
-
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
+            <div className="mx-auto w-full max-w-5xl">
                 <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
                     <div>
                         <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Build a learning path</p>
@@ -281,7 +264,7 @@ export default function Roadmaps() {
                         </div>
                     )}
                 </section>
-            </main>
+            </div>
         </div>
     );
 }

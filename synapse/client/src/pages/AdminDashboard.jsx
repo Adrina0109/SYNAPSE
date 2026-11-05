@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import Navbar from '../components/Navbar.jsx';
 import api from '../lib/api.js';
 
 const MetricCard = ({ num, label, highlight = false }) => (
@@ -133,9 +132,8 @@ export default function AdminDashboard() {
 
     return (
         <div className="min-h-screen bg-paper">
-            <Navbar />
 
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
+            <div className="mx-auto w-full max-w-5xl">
                 <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                     <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Admin control</p>
                     <div className="w-full">

@@ -1,6 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 import DriveForm from '../components/placement/DriveForm.jsx';
 import { formatDayKey } from '../components/planner/plannerHelpers.js';
@@ -14,8 +12,6 @@ const creatorName = (creator) => (
 );
 
 export default function DrivesManage() {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
     const [drives, setDrives] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
@@ -72,29 +68,11 @@ export default function DrivesManage() {
         }
     };
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
-    };
-
-    const dashboardPath = user?.role === 'admin' ? '/admin' : '/mentor';
     const showForm = isCreating || editingDrive;
 
     return (
         <div className="min-h-screen bg-paper">
-            <nav className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/10 px-4 py-4 sm:px-6 lg:px-10">
-                <div className="flex min-w-0 items-center gap-3">
-                    <Link to={dashboardPath} className="font-display text-lg font-bold tracking-tight text-ink">SYNAPSE</Link>
-                    <span className="border-l border-ink/15 pl-3 font-mono text-xs text-ink-faint">Placement drives</span>
-                </div>
-                <div className="flex items-center gap-2 sm:gap-4">
-                    <span className="hidden font-body text-sm text-ink-muted md:block">{user?.name}</span>
-                    <Link to={dashboardPath} className="btn-ghost text-sm">Dashboard</Link>
-                    <button type="button" onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
-                </div>
-            </nav>
-
-            <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+            <div className="mx-auto w-full max-w-5xl">
                 <header className="mb-7 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <p className="mb-2 font-mono text-xs tracking-widest uppercase text-signal">Manage opportunities</p>
@@ -200,7 +178,7 @@ export default function DrivesManage() {
                         ))}
                     </div>
                 )}
-            </main>
+            </div>
         </div>
     );
 }
