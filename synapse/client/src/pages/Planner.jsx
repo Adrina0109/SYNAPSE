@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 import { dayOfMonth, formatDayKey, formatHours, LOAD_META, SEVERITY_LABEL, weekdayShort } from '../components/planner/plannerHelpers.js';
+import ReplanPanel from '../components/planner/ReplanPanel.jsx';
 
 const SummaryCard = ({ value, label }) => (
     <div className="card-hard min-w-0 p-4">
@@ -30,6 +31,8 @@ const PageNav = ({ user, onSignOut }) => (
 export default function Planner() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
+    const [autoPreview] = useState(() => Boolean(location.state?.autoPreview));
     const [capacity, setCapacity] = useState(null);
     const [conflicts, setConflicts] = useState([]);
     const [selectedDate, setSelectedDate] = useState('');
@@ -62,6 +65,12 @@ export default function Planner() {
     useEffect(() => {
         reload();
     }, [reload]);
+
+    useEffect(() => {
+        if (location.state?.autoPreview) {
+            navigate(location.pathname, { replace: true, state: null });
+        }
+    }, [location.pathname, location.state, navigate]);
 
     const handleSignOut = async () => {
         await logout();
@@ -98,14 +107,14 @@ export default function Planner() {
                     </div>
                 )}
 
-                {!loadError && isLoading && (
+                {!loadError && isLoading && !capacity && (
                     <div className="card-hard p-8 flex items-center justify-center gap-3" role="status">
                         <div className="w-5 h-5 border-2 border-ink/20 border-t-signal rounded-full animate-spin" />
                         <span className="font-mono text-xs text-ink-faint tracking-widest uppercase">Loading planner</span>
                     </div>
                 )}
 
-                {!loadError && !isLoading && capacity && (
+                {!loadError && capacity && (
                     <>
                         <section aria-label="Planner summary" className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-8">
                             <SummaryCard value={formatHours(summary.freeHoursNext7Days)} label="Free hours, next 7 days" />
@@ -262,6 +271,9 @@ export default function Planner() {
                                 </ul>
                             )}
                         </section>
+                        <div className="mt-8">
+                            <ReplanPanel autoPreview={autoPreview} onApplied={reload} />
+                        </div>
                     </>
                 )}
             </main>
