@@ -280,6 +280,13 @@ export default function StudentDashboard() {
         }
     };
 
+    const startEditing = (task) => {
+        setEditingTask(task);
+        setShowTaskForm(true);
+        setTaskActionError('');
+        setTaskFeedback('');
+    };
+
     const loadReadiness = useCallback(async () => {
         setReadinessLoading(true);
         setReadinessError('');
