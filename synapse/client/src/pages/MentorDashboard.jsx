@@ -1,45 +1,57 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import api from '../lib/api.js';
+import RiskDistribution from '../components/mentor/RiskDistribution.jsx';
+import StudentDetailDrawer from '../components/mentor/StudentDetailDrawer.jsx';
+import Card from '../components/ui/Card.jsx';
+import EmptyState from '../components/ui/EmptyState.jsx';
+import ErrorState from '../components/ui/ErrorState.jsx';
+import MetricCard from '../components/ui/MetricCard.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
+import ProgressBar from '../components/ui/ProgressBar.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
+import StatusBadge from '../components/ui/StatusBadge.jsx';
 
-const riskTone = {
-    high: 'border-signal/40 bg-signal/10 text-signal',
-    medium: 'border-amber-500/40 bg-amber-500/10 text-amber-800',
-    low: 'border-forest/30 bg-forest/10 text-forest',
+const RISK_FILTERS = [
+    { key: 'all', label: 'All' },
+    { key: 'high', label: 'High' },
+    { key: 'medium', label: 'Medium' },
+    { key: 'low', label: 'Low' },
+];
+
+const riskTone = (riskLevel) => (
+    riskLevel === 'high' ? 'danger' : riskLevel === 'medium' ? 'warning' : riskLevel === 'low' ? 'success' : 'neutral'
+);
+
+const formatStudentProgress = (student) => {
+    if (Number.isFinite(student.roadmapProgress)) return student.roadmapProgress;
+    if (Number.isFinite(student.averageRoadmapProgress)) return student.averageRoadmapProgress;
+    return null;
 };
 
-const RiskBadge = ({ risk }) => {
-    const level = ['high', 'medium', 'low'].includes(risk?.riskLevel) ? risk.riskLevel : 'low';
-    return (
-        <span className={`inline-flex rounded-sm border px-2 py-1 font-mono text-xs uppercase ${riskTone[level]}`}>
-            {level} risk
-        </span>
-    );
-};
-
-const Loading = ({ label }) => (
-    <div className="flex items-center gap-3 py-6" role="status">
-        <div className="h-5 w-5 animate-spin rounded-full border-2 border-ink/20 border-t-signal" />
-        <span className="font-mono text-xs uppercase tracking-widest text-ink-faint">{label}</span>
+const LoadingStudents = () => (
+    <div className="space-y-3 p-4" role="status" aria-label="Loading assigned students">
+        {[0, 1, 2].map((item) => (
+            <Card key={item} className="flex items-center gap-3 p-4">
+                <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-4 w-1/3" />
+                    <Skeleton className="h-3 w-1/2" />
+                </div>
+                <Skeleton className="h-8 w-20" />
+            </Card>
+        ))}
     </div>
 );
 
-const dateLabel = (value) => {
-    if (!value) return 'No deadline';
-    const date = new Date(value);
-    return Number.isNaN(date.getTime())
-        ? 'Deadline unavailable'
-        : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-};
-
 export default function MentorDashboard() {
-    const { user } = useAuth();
     const [students, setStudents] = useState([]);
     const [studentsLoading, setStudentsLoading] = useState(true);
     const [studentsError, setStudentsError] = useState('');
     const [analytics, setAnalytics] = useState(null);
     const [analyticsLoading, setAnalyticsLoading] = useState(true);
     const [analyticsError, setAnalyticsError] = useState('');
+    const [search, setSearch] = useState('');
+    const [riskFilter, setRiskFilter] = useState('all');
     const [selectedStudent, setSelectedStudent] = useState(null);
     const [studentDetail, setStudentDetail] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
@@ -47,6 +59,7 @@ export default function MentorDashboard() {
     const [summary, setSummary] = useState(null);
     const [summaryLoading, setSummaryLoading] = useState(false);
     const [summaryError, setSummaryError] = useState('');
+    const [broadcastOpen, setBroadcastOpen] = useState(false);
     const [broadcast, setBroadcast] = useState({
         title: '',
         description: '',
@@ -57,6 +70,7 @@ export default function MentorDashboard() {
     const [broadcastLoading, setBroadcastLoading] = useState(false);
     const [broadcastError, setBroadcastError] = useState('');
     const [broadcastFeedback, setBroadcastFeedback] = useState('');
+    const openerRef = useRef(null);
 
     const loadStudents = useCallback(async () => {
         setStudentsLoading(true);
@@ -90,6 +104,7 @@ export default function MentorDashboard() {
     }, [loadAnalytics, loadStudents]);
 
     const openStudent = async (student) => {
+        if (!selectedStudent) openerRef.current = document.activeElement;
         setSelectedStudent(student);
         setStudentDetail(null);
         setDetailError('');
@@ -148,295 +163,332 @@ export default function MentorDashboard() {
     };
 
     const studentTotals = useMemo(() => ({
-        pending: students.reduce((sum, student) => sum + (student.pendingTaskCount || 0), 0),
         overdue: students.reduce((sum, student) => sum + (student.overdueTaskCount || 0), 0),
+        atRisk: students.filter((student) => ['high', 'medium'].includes(student.risk?.riskLevel)).length,
     }), [students]);
-    const riskDistribution = analytics?.riskDistribution ?? { low: 0, medium: 0, high: 0 };
-    const riskTotal = ['high', 'medium', 'low'].reduce((sum, risk) => sum + (riskDistribution[risk] || 0), 0);
+
+    const filteredStudents = useMemo(() => {
+        const query = search.trim().toLocaleLowerCase();
+        return students.filter((student) => {
+            const matchesRisk = riskFilter === 'all' || student.risk?.riskLevel === riskFilter;
+            const searchable = `${student.name || ''} ${student.email || ''} ${student.department || ''}`.toLocaleLowerCase();
+            return matchesRisk && (!query || searchable.includes(query));
+        });
+    }, [riskFilter, search, students]);
+
+    const riskCounts = useMemo(() => ({
+        all: students.length,
+        high: students.filter((student) => student.risk?.riskLevel === 'high').length,
+        medium: students.filter((student) => student.risk?.riskLevel === 'medium').length,
+        low: students.filter((student) => student.risk?.riskLevel === 'low').length,
+    }), [students]);
+
+    const closeStudent = useCallback(() => setSelectedStudent(null), []);
+    const handleRetryDetail = () => {
+        if (selectedStudent) openStudent(selectedStudent);
+    };
 
     return (
-        <div className="min-h-screen bg-paper">
-            <div className="mx-auto w-full max-w-6xl">
-                <header className="mb-6">
-                    <p className="section-label mb-2 text-signal">Mentor view</p>
-                    <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">Your batch.</h1>
-                    <p className="mt-2 font-body text-sm text-ink-muted">
-                        {user?.department || 'Mentor dashboard'} · {students.length} assigned student{students.length === 1 ? '' : 's'}
-                    </p>
-                </header>
+        <div className="mx-auto w-full max-w-6xl">
+            <PageHeader
+                title="Mentor dashboard"
+                subtitle="Your assigned students, their risk and what needs attention."
+                actions={(
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setBroadcastOpen((open) => !open);
+                            setBroadcastError('');
+                            setBroadcastFeedback('');
+                        }}
+                        className="btn-primary w-full sm:w-auto"
+                        aria-expanded={broadcastOpen}
+                        aria-controls="broadcast-form"
+                    >
+                        {broadcastOpen ? 'Close broadcast' : 'Broadcast task'}
+                    </button>
+                )}
+            />
 
-                <section className="card-hard mb-6 p-4 sm:p-5" aria-labelledby="analytics-heading">
-                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p className="section-label mb-1">Class overview</p>
-                            <h2 id="analytics-heading" className="font-display text-xl font-semibold text-ink">Analytics</h2>
-                        </div>
-                        <button type="button" className="btn-ghost text-sm" onClick={loadAnalytics}>Refresh</button>
+            {broadcastOpen && (
+                <Card className="mb-5 p-4 sm:p-6" header={(
+                    <div>
+                        <p className="section-label mb-1">Share with your assigned students</p>
+                        <h2 className="font-display text-xl font-semibold text-text">Broadcast a task</h2>
+                    </div>
+                )}>
+                    <div id="broadcast-form" className="space-y-4 p-4 sm:p-6">
+                        {broadcastFeedback && (
+                            <p className="rounded-lg border border-mint/25 bg-mint/10 px-4 py-3 font-body text-sm text-mint" role="status">
+                                {broadcastFeedback}
+                            </p>
+                        )}
+                        {broadcastError && <ErrorState message={broadcastError} />}
+                        <form onSubmit={submitBroadcast} className="grid gap-4 sm:grid-cols-2">
+                            <div className="sm:col-span-2">
+                                <label htmlFor="broadcast-title" className="mb-1 block font-body text-sm font-medium text-text">Title</label>
+                                <input id="broadcast-title" required maxLength={200} value={broadcast.title} onChange={(event) => setBroadcast({ ...broadcast, title: event.target.value })} className="input-base" />
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label htmlFor="broadcast-description" className="mb-1 block font-body text-sm font-medium text-text">Description</label>
+                                <textarea id="broadcast-description" rows={3} maxLength={2000} value={broadcast.description} onChange={(event) => setBroadcast({ ...broadcast, description: event.target.value })} className="input-base resize-y" />
+                            </div>
+                            <div>
+                                <label htmlFor="broadcast-deadline" className="mb-1 block font-body text-sm font-medium text-text">Deadline</label>
+                                <input id="broadcast-deadline" type="datetime-local" value={broadcast.deadline} onChange={(event) => setBroadcast({ ...broadcast, deadline: event.target.value })} className="input-base min-w-0" />
+                            </div>
+                            <div>
+                                <label htmlFor="broadcast-category" className="mb-1 block font-body text-sm font-medium text-text">Category</label>
+                                <select id="broadcast-category" value={broadcast.category} onChange={(event) => setBroadcast({ ...broadcast, category: event.target.value })} className="input-base">
+                                    {['assessment', 'assignment', 'placement', 'event', 'personal'].map((category) => <option key={category} value={category}>{category}</option>)}
+                                </select>
+                            </div>
+                            <div>
+                                <label htmlFor="broadcast-hours" className="mb-1 block font-body text-sm font-medium text-text">Estimated hours</label>
+                                <input id="broadcast-hours" type="number" min="0" max="100" step="0.5" required value={broadcast.estimatedHours} onChange={(event) => setBroadcast({ ...broadcast, estimatedHours: event.target.value })} className="input-base" />
+                            </div>
+                            <div className="flex items-end">
+                                <button type="submit" disabled={broadcastLoading || students.length === 0} className="btn-primary w-full sm:w-auto">
+                                    {broadcastLoading ? 'Sending…' : 'Send to assigned students'}
+                                </button>
+                            </div>
+                            {students.length === 0 && !studentsLoading && (
+                                <p className="font-body text-xs text-text-faint sm:col-span-2">Assign students before broadcasting a task.</p>
+                            )}
+                        </form>
+                    </div>
+                </Card>
+            )}
+
+            <section aria-label="Mentor summary metrics" className="mb-5 grid min-w-0 grid-cols-2 gap-3 lg:grid-cols-3">
+                <MetricCard
+                    label="Assigned students"
+                    value={studentsLoading ? '…' : studentsError ? '—' : students.length}
+                    hint={studentsError || 'Students assigned to you'}
+                />
+                <MetricCard
+                    label="At-risk students"
+                    value={studentsLoading ? '…' : studentsError ? '—' : studentTotals.atRisk}
+                    hint={studentsError || 'High and medium risk'}
+                />
+                <MetricCard
+                    label="Overdue tasks"
+                    value={studentsLoading ? '…' : studentsError ? '—' : studentTotals.overdue}
+                    hint={studentsError || 'Across your assigned students'}
+                />
+                {Number.isFinite(analytics?.averageRoadmapProgress) && (
+                    <MetricCard
+                        label="Average roadmap progress"
+                        value={`${analytics.averageRoadmapProgress}%`}
+                        hint="Across assigned students"
+                    />
+                )}
+            </section>
+
+            <div className="mb-5 grid min-w-0 gap-4 lg:grid-cols-2">
+                {analyticsLoading ? (
+                    <Card className="space-y-4 p-5" aria-label="Loading risk distribution">
+                        <Skeleton className="h-5 w-40" />
+                        <Skeleton className="h-3 w-full" />
+                        <Skeleton className="h-8 w-full" />
+                    </Card>
+                ) : analyticsError ? (
+                    <ErrorState message={analyticsError} onRetry={loadAnalytics} />
+                ) : (
+                    <RiskDistribution distribution={analytics?.riskDistribution} />
+                )}
+                <Card className="flex min-w-0 flex-col justify-between gap-3 p-4 sm:p-5">
+                    <div>
+                        <p className="section-label mb-1">Class overview</p>
+                        <h2 className="font-display text-xl font-semibold text-text">Task completion</h2>
                     </div>
                     {analyticsLoading ? (
-                        <Loading label="Loading analytics" />
+                        <div role="status" aria-label="Loading task completion">
+                            <Skeleton className="h-3 w-full" />
+                        </div>
                     ) : analyticsError ? (
-                        <div role="alert">
-                            <p className="mb-3 font-body text-sm text-signal">{analyticsError}</p>
-                            <button type="button" onClick={loadAnalytics} className="btn-secondary px-4 py-2 text-sm">Retry</button>
-                        </div>
+                        <p className="font-body text-sm text-danger" role="alert">{analyticsError}</p>
                     ) : analytics ? (
-                        <div className="grid gap-5 sm:grid-cols-3">
-                            <div>
-                                <div className="flex items-baseline justify-between gap-2">
-                                    <span className="font-body text-sm text-ink-muted">Task completion</span>
-                                    <strong className="font-display text-2xl text-ink">{analytics.taskCompletionRate ?? 0}%</strong>
-                                </div>
-                                <div className="mt-2 h-2 overflow-hidden bg-ink/10" role="progressbar" aria-label="Task completion rate" aria-valuemin={0} aria-valuemax={100} aria-valuenow={analytics.taskCompletionRate ?? 0}>
-                                    <div className="h-full bg-forest" style={{ width: `${Math.min(100, Math.max(0, analytics.taskCompletionRate ?? 0))}%` }} />
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex items-baseline justify-between gap-2">
-                                    <span className="font-body text-sm text-ink-muted">Average readiness</span>
-                                    <strong className="font-display text-2xl text-ink">{analytics.averageReadiness ?? 0}<span className="font-mono text-xs">/100</span></strong>
-                                </div>
-                                <div className="mt-2 h-2 overflow-hidden bg-ink/10" role="progressbar" aria-label="Average readiness" aria-valuemin={0} aria-valuemax={100} aria-valuenow={analytics.averageReadiness ?? 0}>
-                                    <div className="h-full bg-signal" style={{ width: `${Math.min(100, Math.max(0, analytics.averageReadiness ?? 0))}%` }} />
-                                </div>
-                            </div>
-                            <div>
-                                <p className="mb-2 font-body text-sm text-ink-muted">Risk distribution</p>
-                                {riskTotal === 0 ? (
-                                    <p className="font-mono text-xs text-ink-faint">No risk data yet.</p>
-                                ) : (
-                                    <div className="space-y-2">
-                                        {['high', 'medium', 'low'].map((risk) => {
-                                            const count = riskDistribution[risk] || 0;
-                                            const width = (count / riskTotal) * 100;
-                                            const color = risk === 'high' ? 'bg-signal' : risk === 'medium' ? 'bg-amber-500' : 'bg-forest';
-                                            return (
-                                                <div key={risk} className="grid grid-cols-[3.5rem_1fr_1.5rem] items-center gap-2">
-                                                    <span className="font-mono text-[10px] uppercase text-ink-faint">{risk}</span>
-                                                    <div className="h-2 overflow-hidden bg-ink/10" role="img" aria-label={`${count} ${risk} risk students`}>
-                                                        <div className={`h-full ${color}`} style={{ width: `${width}%` }} />
-                                                    </div>
-                                                    <span className="text-right font-mono text-xs text-ink">{count}</span>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        <ProgressBar value={analytics.taskCompletionRate} label="Assigned task completion" />
                     ) : (
-                        <p className="font-body text-sm text-ink-muted">Analytics are not available yet.</p>
+                        <p className="font-body text-sm text-text-muted">Analytics are not available yet.</p>
                     )}
-                </section>
+                </Card>
+            </div>
 
-                <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-                    <div className="card-hard p-4 text-center sm:p-5">
-                        <p className="font-display text-3xl font-bold text-ink">{students.length}</p>
-                        <p className="section-label mt-1">Students</p>
+            <section className="card-hard min-w-0 overflow-hidden" aria-labelledby="students-heading">
+                <header className="border-b border-border p-4 sm:p-5">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <p className="section-label mb-1">Assigned to you</p>
+                            <h2 id="students-heading" className="font-display text-xl font-semibold text-text">Student roster</h2>
+                        </div>
+                        <button type="button" onClick={loadStudents} className="btn-secondary px-3 py-2 text-sm" disabled={studentsLoading}>
+                            {studentsLoading ? 'Refreshing…' : 'Refresh'}
+                        </button>
                     </div>
-                    <div className="card-hard p-4 text-center sm:p-5">
-                        <p className="font-display text-3xl font-bold text-forest">{studentTotals.pending}</p>
-                        <p className="section-label mt-1">Pending tasks</p>
-                    </div>
-                    <div className="card-hard col-span-2 p-4 text-center sm:col-span-1 sm:p-5">
-                        <p className="font-display text-3xl font-bold text-signal">{studentTotals.overdue}</p>
-                        <p className="section-label mt-1">Overdue tasks</p>
-                    </div>
-                </div>
+                    {!studentsLoading && !studentsError && students.length > 0 && (
+                        <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+                            <div>
+                                <label htmlFor="student-search" className="sr-only">Search assigned students</label>
+                                <input
+                                    id="student-search"
+                                    type="search"
+                                    value={search}
+                                    onChange={(event) => setSearch(event.target.value)}
+                                    className="input-base"
+                                    placeholder="Search name, email or department"
+                                />
+                            </div>
+                            <div className="flex flex-wrap gap-2" role="group" aria-label="Filter by risk">
+                                {RISK_FILTERS.map((filter) => (
+                                    <button
+                                        key={filter.key}
+                                        type="button"
+                                        onClick={() => setRiskFilter(filter.key)}
+                                        aria-pressed={riskFilter === filter.key}
+                                        className={`rounded-full border px-3 py-2 font-mono text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus ${
+                                            riskFilter === filter.key
+                                                ? 'border-accent bg-accent-soft text-accent'
+                                                : 'border-border-strong bg-surface text-text-muted hover:bg-surface-2'
+                                        }`}
+                                    >
+                                        {filter.label} <span className="ml-1">{riskCounts[filter.key]}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </header>
 
-                <section className="card-hard mb-6 overflow-hidden" aria-labelledby="students-heading">
-                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/10 px-4 py-4 sm:px-5">
-                        <h2 id="students-heading" className="font-display text-xl font-semibold text-ink">Assigned students</h2>
-                        <button type="button" onClick={loadStudents} className="btn-ghost text-sm">Refresh</button>
+                {studentsLoading ? (
+                    <LoadingStudents />
+                ) : studentsError ? (
+                    <div className="p-4 sm:p-5"><ErrorState message={studentsError} onRetry={loadStudents} /></div>
+                ) : students.length === 0 ? (
+                    <div className="p-4 sm:p-5">
+                        <EmptyState
+                            title="No assigned students"
+                            body="Students assigned to you by an administrator will appear here. This roster only includes students assigned to your mentor account."
+                        />
                     </div>
-                    {studentsLoading ? (
-                        <div className="px-5"><Loading label="Loading students" /></div>
-                    ) : studentsError ? (
-                        <div className="px-5 py-6 text-center" role="alert">
-                            <p className="mb-3 font-body text-sm text-signal">{studentsError}</p>
-                            <button type="button" onClick={loadStudents} className="btn-secondary px-4 py-2 text-sm">Try again</button>
-                        </div>
-                    ) : students.length === 0 ? (
-                        <div className="px-5 py-8 text-center">
-                            <p className="font-display text-lg font-semibold text-ink">No students assigned yet</p>
-                            <p className="mt-2 font-body text-sm text-ink-muted">Students assigned by an admin will appear here.</p>
-                        </div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[680px] text-left">
-                                <thead>
-                                    <tr className="border-b border-ink/10 font-mono text-[10px] uppercase tracking-wide text-ink-faint">
-                                        <th className="px-4 py-3 font-normal">Student</th>
-                                        <th className="px-4 py-3 font-normal">Risk</th>
-                                        <th className="px-4 py-3 font-normal">Tasks</th>
-                                        <th className="px-4 py-3 font-normal">Readiness</th>
-                                        <th className="px-4 py-3 font-normal"><span className="sr-only">Details</span></th>
+                ) : filteredStudents.length === 0 ? (
+                    <div className="p-4 sm:p-5">
+                        <EmptyState title="No matching students" body="Try a different search term or risk filter." />
+                    </div>
+                ) : (
+                    <>
+                        <div className="hidden overflow-x-auto md:block">
+                            <table className="w-full table-fixed text-left">
+                                <caption className="sr-only">Students assigned to this mentor</caption>
+                                <thead className="border-b border-border bg-surface-2 font-mono text-[10px] uppercase tracking-wider text-text-faint">
+                                    <tr>
+                                        <th scope="col" className="w-[20%] px-4 py-3 font-normal">Student</th>
+                                        <th scope="col" className="w-[15%] px-4 py-3 font-normal">Department</th>
+                                        <th scope="col" className="w-[12%] px-4 py-3 font-normal">Risk</th>
+                                        <th scope="col" className="w-[17%] px-4 py-3 font-normal">Roadmap progress</th>
+                                        <th scope="col" className="w-[10%] px-4 py-3 font-normal">Readiness</th>
+                                        <th scope="col" className="w-[13%] px-4 py-3 font-normal">Tasks</th>
+                                        <th scope="col" className="w-[13%] px-4 py-3 text-right font-normal">Open</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-ink/10">
-                                    {students.map((student) => (
-                                        <tr key={student._id} className="align-top">
-                                            <td className="px-4 py-4">
-                                                <p className="font-body text-sm font-semibold text-ink">{student.name}</p>
-                                                <p className="break-all font-mono text-xs text-ink-faint">{student.email}</p>
-                                                {student.risk?.reasons?.length > 0 && (
-                                                    <ul className="mt-2 space-y-1">
-                                                        {student.risk.reasons.map((reason) => <li key={reason} className="font-body text-xs text-ink-muted">· {reason}</li>)}
-                                                    </ul>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-4"><RiskBadge risk={student.risk} /></td>
-                                            <td className="px-4 py-4">
-                                                <p className="whitespace-nowrap font-mono text-xs text-ink">{student.pendingTaskCount || 0} pending</p>
-                                                <p className="mt-1 whitespace-nowrap font-mono text-xs text-signal">{student.overdueTaskCount || 0} overdue</p>
-                                            </td>
-                                            <td className="px-4 py-4 font-mono text-sm text-ink">{student.readiness?.score ?? '—'}{student.readiness ? '/100' : ''}</td>
-                                            <td className="px-4 py-4">
-                                                <button type="button" onClick={() => openStudent(student)} className="btn-secondary whitespace-nowrap px-3 py-2 text-xs">
-                                                    View details
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
+                                <tbody className="divide-y divide-border">
+                                    {filteredStudents.map((student) => {
+                                        const progress = formatStudentProgress(student);
+                                        return (
+                                            <tr key={student._id} className="align-middle hover:bg-surface-2/50">
+                                                <td className="px-4 py-4">
+                                                    <p className="break-words font-body text-sm font-semibold text-text">{student.name}</p>
+                                                    <p className="break-all font-mono text-[10px] text-text-faint">{student.email}</p>
+                                                </td>
+                                                <td className="break-words px-4 py-4 font-body text-xs text-text-muted">{student.department || '—'}</td>
+                                                <td className="px-4 py-4">
+                                                    <StatusBadge tone={riskTone(student.risk?.riskLevel)} label={`${student.risk?.riskLevel || 'unknown'} risk`} />
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    {progress == null ? (
+                                                        <span className="font-mono text-xs text-text-faint" aria-label="Roadmap progress not provided">Not provided</span>
+                                                    ) : (
+                                                        <ProgressBar value={progress} label="Roadmap progress" />
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-4 font-mono text-sm text-text">
+                                                    {student.readiness?.score ?? '—'}{student.readiness ? '/100' : ''}
+                                                </td>
+                                                <td className="px-4 py-4 font-mono text-xs">
+                                                    <p className="text-text-muted">{student.pendingTaskCount || 0} pending</p>
+                                                    <p className={`mt-1 ${(student.overdueTaskCount || 0) > 0 ? 'text-danger' : 'text-text-faint'}`}>
+                                                        {student.overdueTaskCount || 0} overdue
+                                                    </p>
+                                                </td>
+                                                <td className="px-4 py-4 text-right">
+                                                    <button type="button" onClick={() => openStudent(student)} className="btn-secondary whitespace-nowrap px-3 py-2 text-xs">
+                                                        Open
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
-                    )}
-                </section>
-
-                <section className="card-hard p-4 sm:p-5" aria-labelledby="broadcast-heading">
-                    <p className="section-label mb-1">Share with your batch</p>
-                    <h2 id="broadcast-heading" className="mb-4 font-display text-xl font-semibold text-ink">Broadcast a task</h2>
-                    {broadcastFeedback && <p className="mb-4 border border-forest/30 bg-forest/10 px-4 py-3 font-body text-sm text-forest" role="status">{broadcastFeedback}</p>}
-                    {broadcastError && <p className="mb-4 border border-signal/30 bg-signal/10 px-4 py-3 font-body text-sm text-signal" role="alert">{broadcastError}</p>}
-                    <form onSubmit={submitBroadcast} className="grid gap-4 sm:grid-cols-2">
-                        <div className="sm:col-span-2">
-                            <label htmlFor="broadcast-title" className="mb-1 block font-body text-sm font-medium text-ink">Title</label>
-                            <input id="broadcast-title" required maxLength={200} value={broadcast.title} onChange={(event) => setBroadcast({ ...broadcast, title: event.target.value })} className="input-base" />
-                        </div>
-                        <div className="sm:col-span-2">
-                            <label htmlFor="broadcast-description" className="mb-1 block font-body text-sm font-medium text-ink">Description</label>
-                            <textarea id="broadcast-description" rows={3} maxLength={2000} value={broadcast.description} onChange={(event) => setBroadcast({ ...broadcast, description: event.target.value })} className="input-base resize-y" />
-                        </div>
-                        <div>
-                            <label htmlFor="broadcast-deadline" className="mb-1 block font-body text-sm font-medium text-ink">Deadline</label>
-                            <input id="broadcast-deadline" type="datetime-local" value={broadcast.deadline} onChange={(event) => setBroadcast({ ...broadcast, deadline: event.target.value })} className="input-base min-w-0" />
-                        </div>
-                        <div>
-                            <label htmlFor="broadcast-category" className="mb-1 block font-body text-sm font-medium text-ink">Category</label>
-                            <select id="broadcast-category" value={broadcast.category} onChange={(event) => setBroadcast({ ...broadcast, category: event.target.value })} className="input-base">
-                                {['assessment', 'assignment', 'placement', 'event', 'personal'].map((category) => <option key={category} value={category}>{category}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="broadcast-hours" className="mb-1 block font-body text-sm font-medium text-ink">Estimated hours</label>
-                            <input id="broadcast-hours" type="number" min="0" max="100" step="0.5" required value={broadcast.estimatedHours} onChange={(event) => setBroadcast({ ...broadcast, estimatedHours: event.target.value })} className="input-base" />
-                        </div>
-                        <div className="flex items-end">
-                            <button type="submit" disabled={broadcastLoading || students.length === 0} className="btn-primary w-full sm:w-auto">
-                                {broadcastLoading ? 'Sending…' : 'Send to assigned students'}
-                            </button>
-                        </div>
-                        {students.length === 0 && !studentsLoading && <p className="font-body text-xs text-ink-faint sm:col-span-2">Assign students before broadcasting a task.</p>}
-                    </form>
-                </section>
-            </div>
+                        <ul className="space-y-3 p-3 md:hidden">
+                            {filteredStudents.map((student) => {
+                                const progress = formatStudentProgress(student);
+                                return (
+                                    <li key={student._id}>
+                                        <Card className="space-y-4 p-4">
+                                            <div className="flex min-w-0 items-start justify-between gap-3">
+                                                <div className="min-w-0">
+                                                    <p className="break-words font-display text-lg font-semibold text-text">{student.name}</p>
+                                                    <p className="break-all font-mono text-xs text-text-faint">{student.email}</p>
+                                                    <p className="mt-1 break-words font-body text-xs text-text-muted">{student.department || 'Department not provided'}</p>
+                                                </div>
+                                                <StatusBadge tone={riskTone(student.risk?.riskLevel)} label={`${student.risk?.riskLevel || 'unknown'} risk`} />
+                                            </div>
+                                            {progress == null ? (
+                                                <p className="font-body text-xs text-text-faint">Roadmap progress not provided by the roster endpoint.</p>
+                                            ) : (
+                                                <ProgressBar value={progress} label="Roadmap progress" />
+                                            )}
+                                            <div className="grid grid-cols-2 gap-2 border-y border-border py-3">
+                                                <div>
+                                                    <p className="section-label mb-1">Readiness</p>
+                                                    <p className="font-mono text-sm text-text">{student.readiness?.score ?? '—'}{student.readiness ? '/100' : ''}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="section-label mb-1">Tasks</p>
+                                                    <p className="font-mono text-xs text-text-muted">{student.pendingTaskCount || 0} pending</p>
+                                                    <p className={`font-mono text-xs ${(student.overdueTaskCount || 0) > 0 ? 'text-danger' : 'text-text-faint'}`}>
+                                                        {student.overdueTaskCount || 0} overdue
+                                                    </p>
+                                                </div>
+                                            </div>
+                                            <button type="button" onClick={() => openStudent(student)} className="btn-secondary w-full">
+                                                Open student details
+                                            </button>
+                                        </Card>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                    </>
+                )}
+            </section>
 
             {selectedStudent && (
-                <div className="fixed inset-0 z-40 bg-ink/40" role="presentation" onMouseDown={(event) => {
-                    if (event.target === event.currentTarget) setSelectedStudent(null);
-                }}>
-                    <aside className="ml-auto flex h-full w-full max-w-xl flex-col overflow-y-auto border-l border-ink/15 bg-paper p-4 shadow-2xl sm:p-6" role="dialog" aria-modal="true" aria-labelledby="student-detail-heading">
-                        <div className="mb-5 flex items-start justify-between gap-4">
-                            <div className="min-w-0">
-                                <p className="section-label mb-1">Student details</p>
-                                <h2 id="student-detail-heading" className="break-words font-display text-2xl font-semibold text-ink">{studentDetail?.name || selectedStudent.name}</h2>
-                            </div>
-                            <button type="button" onClick={() => setSelectedStudent(null)} className="btn-ghost text-sm">Close</button>
-                        </div>
-                        {detailLoading ? (
-                            <Loading label="Loading student details" />
-                        ) : detailError ? (
-                            <div role="alert">
-                                <p className="mb-3 font-body text-sm text-signal">{detailError}</p>
-                                <button type="button" onClick={() => openStudent(selectedStudent)} className="btn-secondary px-4 py-2 text-sm">Try again</button>
-                            </div>
-                        ) : studentDetail && (
-                            <div className="space-y-6">
-                                <div className="grid gap-2 border-b border-ink/10 pb-4 font-body text-sm text-ink-muted">
-                                    <p className="break-all">{studentDetail.email}</p>
-                                    <p>{studentDetail.department || 'Department not set'}{studentDetail.year ? ` · Year ${studentDetail.year}` : ''}</p>
-                                </div>
-
-                                <section>
-                                    <h3 className="mb-2 font-display text-lg font-semibold text-ink">Risk & readiness</h3>
-                                    <div className="flex flex-wrap items-center gap-3">
-                                        <RiskBadge risk={studentDetail.risk} />
-                                        <span className="tag-pill-outline">Readiness {studentDetail.readiness?.score ?? '—'}/100</span>
-                                    </div>
-                                    {studentDetail.risk?.reasons?.length > 0 ? (
-                                        <ul className="mt-3 list-disc space-y-1 pl-5 font-body text-sm text-ink-muted">
-                                            {studentDetail.risk.reasons.map((reason) => <li key={reason}>{reason}</li>)}
-                                        </ul>
-                                    ) : (
-                                        <p className="mt-3 font-body text-sm text-ink-muted">No current risk factors reported.</p>
-                                    )}
-                                </section>
-
-                                <section>
-                                    <h3 className="mb-2 font-display text-lg font-semibold text-ink">Tasks</h3>
-                                    {studentDetail.tasks?.length ? (
-                                        <ul className="space-y-2">
-                                            {studentDetail.tasks.map((task) => (
-                                                <li key={task._id} className="border border-ink/10 p-3">
-                                                    <p className={`break-words font-body text-sm font-medium ${task.status === 'completed' ? 'text-ink-faint line-through' : 'text-ink'}`}>{task.title}</p>
-                                                    <p className="mt-1 font-mono text-xs text-ink-faint">{task.status.replaceAll('_', ' ')} · {dateLabel(task.deadline)}</p>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : <p className="font-body text-sm text-ink-muted">No tasks found.</p>}
-                                </section>
-
-                                <section>
-                                    <h3 className="mb-2 font-display text-lg font-semibold text-ink">Roadmaps</h3>
-                                    {studentDetail.roadmaps?.length ? (
-                                        <ul className="space-y-2">
-                                            {studentDetail.roadmaps.map((roadmap) => {
-                                                const total = roadmap.days?.length ?? 0;
-                                                const completed = roadmap.days?.filter((day) => day.completed).length ?? 0;
-                                                const percent = total ? Math.round((completed / total) * 100) : 0;
-                                                return (
-                                                    <li key={roadmap._id} className="border border-ink/10 p-3">
-                                                        <div className="flex flex-wrap items-center justify-between gap-2">
-                                                            <p className="font-body text-sm font-medium text-ink">{roadmap.goal}</p>
-                                                            <span className="tag-pill-outline">{roadmap.status}</span>
-                                                        </div>
-                                                        <div className="mt-2 h-2 bg-ink/10"><div className="h-full bg-forest" style={{ width: `${percent}%` }} /></div>
-                                                        <p className="mt-1 font-mono text-xs text-ink-faint">{percent}% complete</p>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    ) : <p className="font-body text-sm text-ink-muted">No roadmaps found.</p>}
-                                </section>
-
-                                <section className="border-t border-ink/10 pt-5">
-                                    <button type="button" onClick={generateSummary} disabled={summaryLoading} className="btn-primary w-full sm:w-auto">
-                                        {summaryLoading ? 'Generating…' : 'Generate AI summary'}
-                                    </button>
-                                    {summaryError && <p className="mt-3 font-body text-sm text-signal" role="alert">{summaryError}</p>}
-                                    {summary && (
-                                        <div className="mt-4 border border-ink/10 bg-white/40 p-4" aria-live="polite">
-                                            <h3 className="font-display text-base font-semibold text-ink">Mentor summary</h3>
-                                            <p className="mt-2 font-body text-sm leading-relaxed text-ink-muted">{summary.summary}</p>
-                                            <p className="mt-3 font-body text-sm"><span className="font-semibold text-ink">Suggested action:</span> {summary.suggestedAction}</p>
-                                        </div>
-                                    )}
-                                </section>
-                            </div>
-                        )}
-                    </aside>
-                </div>
+                <StudentDetailDrawer
+                    student={studentDetail}
+                    openerRef={openerRef}
+                    loading={detailLoading}
+                    error={detailError}
+                    summary={summary}
+                    summaryLoading={summaryLoading}
+                    summaryError={summaryError}
+                    onClose={closeStudent}
+                    onRetry={handleRetryDetail}
+                    onGenerateSummary={generateSummary}
+                />
             )}
         </div>
     );
