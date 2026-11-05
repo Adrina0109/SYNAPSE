@@ -12,6 +12,7 @@ import Placement from './pages/Placement.jsx';
 import SharePublic from './pages/SharePublic.jsx';
 import DrivesManage from './pages/DrivesManage.jsx';
 import Announcements from './pages/Announcements.jsx';
+import AnnouncementInbox from './pages/AnnouncementInbox.jsx';
 import Assistant from './pages/Assistant.jsx';
 import Documents from './pages/Documents.jsx';
 import Roadmaps from './pages/Roadmaps.jsx';
@@ -101,8 +102,16 @@ export default function App() {
             <Route
                 path="/announcements"
                 element={
-                    <RoleRoute role="student">
+                    <RoleRoute role={['mentor', 'admin']}>
                         <Announcements />
+                    </RoleRoute>
+                }
+            />
+            <Route
+                path="/announcements/inbox"
+                element={
+                    <RoleRoute role="student">
+                        <AnnouncementInbox />
                     </RoleRoute>
                 }
             />

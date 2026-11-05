@@ -1,35 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
-import { useNavigate } from 'react-router-dom';
+import Navbar from '../components/Navbar.jsx';
 import api from '../lib/api.js';
 
-function SignalLogo() {
-    return (
-        <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
-            <circle cx="4" cy="14" r="2.5" fill="#E8401C" />
-            <circle cx="14" cy="6" r="2.5" fill="#E8401C" />
-            <circle cx="24" cy="14" r="2.5" fill="#E8401C" />
-            <circle cx="14" cy="22" r="2.5" fill="#E8401C" />
-            <line x1="4" y1="14" x2="14" y2="6" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.4" />
-            <line x1="14" y1="6" x2="24" y2="14" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.4" />
-            <line x1="24" y1="14" x2="14" y2="22" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.4" />
-            <line x1="14" y1="22" x2="4" y2="14" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.4" />
-        </svg>
-    );
-}
-
-const MetricCard = ({ num, label, sub, highlight }) => (
-    <div className="card-hard p-6">
-        <div className={`font-display text-5xl font-bold mb-1 ${highlight ? 'text-signal' : 'text-ink'}`}>{num}</div>
-        <div className="font-mono text-xs text-ink-faint tracking-widest uppercase">{label}</div>
-        {sub && <div className="font-body text-xs text-ink-muted mt-1">{sub}</div>}
+const MetricCard = ({ num, label, highlight = false }) => (
+    <div className="card-hard min-w-0 p-4 sm:p-5">
+        <div className={`mb-1 break-words font-display text-3xl font-bold sm:text-4xl ${highlight ? 'text-signal' : 'text-ink'}`}>{num}</div>
+        <div className="font-mono text-[10px] uppercase tracking-widest text-ink-faint sm:text-xs">{label}</div>
     </div>
 );
 
 export default function AdminDashboard() {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
     const [students, setStudents] = useState([]);
     const [mentors, setMentors] = useState([]);
     const [selectedStudents, setSelectedStudents] = useState([]);
@@ -40,6 +21,9 @@ export default function AdminDashboard() {
     const [isSaving, setIsSaving] = useState(false);
     const [error, setError] = useState('');
     const [feedback, setFeedback] = useState('');
+    const [stats, setStats] = useState(null);
+    const [statsLoading, setStatsLoading] = useState(true);
+    const [statsError, setStatsError] = useState('');
 
     const loadAssignments = useCallback(async () => {
         setIsLoading(true);
@@ -63,6 +47,23 @@ export default function AdminDashboard() {
     useEffect(() => {
         loadAssignments();
     }, [loadAssignments]);
+
+    const loadStats = useCallback(async () => {
+        setStatsLoading(true);
+        setStatsError('');
+        try {
+            const { data } = await api.get('/admin/stats');
+            setStats(data.stats ?? null);
+        } catch (requestError) {
+            setStatsError(requestError.response?.data?.message || 'Could not load admin stats. Please try again.');
+        } finally {
+            setStatsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadStats();
+    }, [loadStats]);
 
     const filteredStudents = useMemo(() => {
         const normalizedSearch = search.trim().toLowerCase();
@@ -130,39 +131,44 @@ export default function AdminDashboard() {
         }
     };
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
-    };
-
     return (
         <div className="min-h-screen bg-paper">
-            <nav className="border-b border-ink/10 px-4 sm:px-6 lg:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                    <SignalLogo />
-                    <span className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</span>
-                    <span className="hidden sm:block font-mono text-xs text-ink-faint border-l border-ink/15 pl-3 ml-1">Admin</span>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
-                    <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
-                    <Link to="/documents" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Documents</Link>
-                    <Link to="/placement/drives" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Placement drives</Link>
-                    <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
-                </div>
-            </nav>
+            <Navbar />
 
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
-                <div className="mb-10">
+                <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
                     <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Admin control</p>
-                    <h1 className="font-display text-4xl font-bold text-ink">Batch overview.</h1>
+                    <div className="w-full">
+                        <h1 className="font-display text-3xl font-bold text-ink sm:text-4xl">Batch overview.</h1>
+                    </div>
+                    <Link to="/admin/documents" className="btn-secondary px-4 py-2 text-sm">Open Documents →</Link>
                 </div>
 
-                {/* Metrics */}
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
-                    <MetricCard num="10" label="Students" sub="8 onboarded" />
-                    <MetricCard num="2" label="Mentors" />
-                    <MetricCard num="3" label="At risk" highlight />
-                    <MetricCard num="6" label="Announcements" sub="this week" />
+                <div className="mb-8">
+                    {statsLoading ? (
+                        <div className="card-hard p-5" role="status">
+                            <p className="font-mono text-xs uppercase tracking-widest text-ink-faint">Loading admin stats…</p>
+                        </div>
+                    ) : statsError ? (
+                        <div className="card-hard flex flex-wrap items-center justify-between gap-3 p-4" role="alert">
+                            <p className="font-body text-sm text-signal">{statsError}</p>
+                            <button type="button" onClick={loadStats} className="btn-secondary px-4 py-2 text-sm">Retry</button>
+                        </div>
+                    ) : stats ? (
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 sm:gap-4">
+                            <MetricCard num={stats.usersByRole?.student ?? 0} label="Students" />
+                            <MetricCard num={stats.usersByRole?.mentor ?? 0} label="Mentors" />
+                            <MetricCard num={stats.usersByRole?.admin ?? 0} label="Admins" />
+                            <MetricCard num={stats.documentCount ?? 0} label="Documents" />
+                            <MetricCard num={stats.announcementCount ?? 0} label="Announcements" />
+                            <MetricCard num={stats.unassignedStudentCount ?? 0} label="Unassigned students" highlight />
+                        </div>
+                    ) : (
+                        <div className="card-hard p-5">
+                            <p className="font-body text-sm text-ink-muted">Admin stats are not available yet.</p>
+                            <button type="button" onClick={loadStats} className="btn-secondary mt-3 px-4 py-2 text-sm">Retry</button>
+                        </div>
+                    )}
                 </div>
 
                 <section className="card-hard mb-8" aria-labelledby="mentor-assignment-heading">
@@ -342,59 +348,6 @@ export default function AdminDashboard() {
                     </div>
                 </section>
 
-                {/* Admin action sections */}
-                <div className="grid lg:grid-cols-2 gap-6">
-                    {/* Announcements */}
-                    <div className="card-hard">
-                        <div className="px-6 py-4 border-b border-ink/10">
-                            <h2 className="font-display text-base font-semibold text-ink">Announcements</h2>
-                        </div>
-                        <div className="p-6 space-y-3">
-                            {[
-                                { text: 'Resume workshop — Fri 2pm, Room 301', time: '2 hrs ago' },
-                                { text: 'DSA test rescheduled to next Monday', time: 'Yesterday' },
-                                { text: 'Placement drive: XYZ Corp — Nov 12', time: '2 days ago' },
-                            ].map((a, i) => (
-                                <div key={i} className="flex gap-3 items-start">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-signal mt-1.5 flex-shrink-0" />
-                                    <div>
-                                        <p className="font-body text-sm text-ink">{a.text}</p>
-                                        <p className="font-mono text-xs text-ink-faint">{a.time}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Batch health */}
-                    <div className="card-hard">
-                        <div className="px-6 py-4 border-b border-ink/10">
-                            <h2 className="font-display text-base font-semibold text-ink">Batch health</h2>
-                        </div>
-                        <div className="p-6 space-y-4">
-                            {[
-                                { label: 'Onboarding complete', val: 80 },
-                                { label: 'Avg. roadmap progress', val: 54 },
-                                { label: 'Placement readiness', val: 38 },
-                            ].map((item) => (
-                                <div key={item.label}>
-                                    <div className="flex justify-between mb-1">
-                                        <span className="font-body text-sm text-ink">{item.label}</span>
-                                        <span className="font-mono text-xs text-ink-faint">{item.val}%</span>
-                                    </div>
-                                    <div className="w-full h-1.5 bg-ink/10 rounded-full overflow-hidden">
-                                        <div className="h-full bg-forest rounded-full transition-all" style={{ width: `${item.val}%` }} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-
-                <div className="mt-6 p-5 border border-signal/30 bg-signal/5">
-                    <p className="font-mono text-xs text-signal uppercase tracking-widest mb-1">Coming soon</p>
-                    <p className="font-body text-sm text-ink">AI announcement-to-task parsing, deadline conflict detection, department analytics, and mentor assignment.</p>
-                </div>
             </div>
         </div>
     );

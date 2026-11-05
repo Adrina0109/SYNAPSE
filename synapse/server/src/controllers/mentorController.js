@@ -1,13 +1,31 @@
-import mongoose from 'mongoose';
-import { z } from 'zod';
 import Task from '../models/Task.js';
 import User from '../models/User.js';
-import { getAssignedStudentIds, isAssigned } from '../utils/mentorHelpers.js';
+import Roadmap from '../models/Roadmap.js';
+import { getAssignedStudentIds } from '../utils/mentorHelpers.js';
+import { getReadiness } from '../services/readinessService.js';
+import { computeRisk, summarizeStudent } from '../services/riskService.js';
+import {
+    mentorBroadcastSchema,
+    studentIdParamsSchema,
+} from '../validators/mentorValidators.js';
 
 const studentFields = 'name email department year skills careerGoal dailyHours onboardingComplete';
-const studentIdSchema = z.string().regex(/^[a-f\d]{24}$/i, 'Student ID must be a valid ObjectId');
 
-const isAdmin = (req) => req.userRole === 'admin';
+const validationErrors = (issues) => {
+    const errors = {};
+    issues.forEach((issue) => {
+        const field = issue.path[0]
+            ?? (issue.code === 'unrecognized_keys' ? issue.keys.join(', ') : 'general');
+        errors[field] = issue.message;
+    });
+    return errors;
+};
+
+const respondWithValidationErrors = (res, issues) => res.status(400).json({
+    success: false,
+    message: 'Validation failed',
+    errors: validationErrors(issues),
+});
 
 const getStudentsForRequest = async (req) => {
     const studentIds = await getAssignedStudentIds(req.user.id);
@@ -58,14 +76,20 @@ export const getStudents = async (req, res, next) => {
             taskCounts.map((counts) => [String(counts._id), counts])
         );
 
-        const result = students.map((student) => {
+        const result = await Promise.all(students.map(async (student) => {
             const counts = taskCountsByStudent.get(String(student._id));
+            const [risk, readiness] = await Promise.all([
+                computeRisk(student._id, now),
+                getReadiness(student._id, now),
+            ]);
             return {
                 ...student,
                 pendingTaskCount: counts?.pendingTaskCount || 0,
                 overdueTaskCount: counts?.overdueTaskCount || 0,
+                risk,
+                readiness,
             };
-        });
+        }));
 
         res.status(200).json({
             success: true,
@@ -80,39 +104,138 @@ export const getStudents = async (req, res, next) => {
 // GET /api/mentor/students/:id
 export const getStudent = async (req, res, next) => {
     try {
-        const parsed = studentIdSchema.safeParse(req.params.id);
+        const parsed = studentIdParamsSchema.safeParse(req.params);
         if (!parsed.success) {
-            return res.status(400).json({
-                success: false,
-                message: 'Validation failed',
-                errors: { id: parsed.error.errors[0].message },
-            });
+            return respondWithValidationErrors(res, parsed.error.errors);
         }
 
-        const studentId = new mongoose.Types.ObjectId(parsed.data);
-        const student = await User.findOne({ _id: studentId, role: 'student' })
-            .select(studentFields)
-            .lean();
-        if (!student) {
-            return res.status(404).json({ success: false, message: 'Student not found.' });
-        }
-
-        if (!isAdmin(req) && !await isAssigned(req.user.id, studentId)) {
+        const studentIds = await getAssignedStudentIds(req.user.id);
+        if (!studentIds.some((id) => String(id) === parsed.data.id)) {
             return res.status(403).json({
                 success: false,
                 message: 'Access denied. This student is not assigned to you.',
             });
         }
 
-        const tasks = await Task.find({ user: studentId })
-            .sort({ createdAt: -1 })
-            .limit(10)
+        const student = await User.findOne({ _id: parsed.data.id, role: 'student' })
+            .select(studentFields)
             .lean();
+        if (!student) {
+            return res.status(404).json({ success: false, message: 'Student not found.' });
+        }
+
+        const [tasks, roadmaps, readiness, risk] = await Promise.all([
+            Task.find({ user: student._id }).sort({ createdAt: -1 }).limit(10).lean(),
+            Roadmap.find({ user: student._id }).sort({ createdAt: -1 }).lean(),
+            getReadiness(student._id),
+            computeRisk(student._id),
+        ]);
 
         res.status(200).json({
             success: true,
             message: 'Student retrieved successfully',
-            student: { ...student, tasks },
+            student: { ...student, tasks, roadmaps, readiness, risk },
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const getMentorAnalytics = async (req, res, next) => {
+    try {
+        const studentIds = await getAssignedStudentIds(req.user.id);
+        const [taskTotals, riskAndReadiness] = await Promise.all([
+            studentIds.length === 0
+                ? []
+                : Task.aggregate([
+                    { $match: { user: { $in: studentIds } } },
+                    {
+                        $group: {
+                            _id: null,
+                            total: { $sum: 1 },
+                            completed: {
+                                $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] },
+                            },
+                        },
+                    },
+                ]),
+            Promise.all(studentIds.map(async (studentId) => {
+                const [risk, readiness] = await Promise.all([
+                    computeRisk(studentId),
+                    getReadiness(studentId),
+                ]);
+                return { risk, readiness };
+            })),
+        ]);
+
+        const riskDistribution = { low: 0, medium: 0, high: 0 };
+        let readinessTotal = 0;
+        riskAndReadiness.forEach(({ risk, readiness }) => {
+            riskDistribution[risk.riskLevel] += 1;
+            readinessTotal += readiness.score;
+        });
+        const totals = taskTotals[0] ?? { total: 0, completed: 0 };
+        const analytics = {
+            taskCompletionRate: totals.total === 0
+                ? 0
+                : Math.round((totals.completed / totals.total) * 10000) / 100,
+            riskDistribution,
+            averageReadiness: riskAndReadiness.length === 0
+                ? 0
+                : Math.round((readinessTotal / riskAndReadiness.length) * 10) / 10,
+            studentCount: studentIds.length,
+        };
+        res.status(200).json({
+            success: true,
+            message: 'Mentor analytics retrieved successfully',
+            analytics,
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const getStudentSummary = async (req, res, next) => {
+    try {
+        const parsed = studentIdParamsSchema.safeParse(req.params);
+        if (!parsed.success) return respondWithValidationErrors(res, parsed.error.errors);
+
+        const studentIds = await getAssignedStudentIds(req.user.id);
+        if (!studentIds.some((id) => String(id) === parsed.data.id)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied. This student is not assigned to you.',
+            });
+        }
+
+        const summary = await summarizeStudent(parsed.data.id);
+        res.status(200).json({
+            success: true,
+            message: 'Student summary generated successfully',
+            summary,
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const broadcastTask = async (req, res, next) => {
+    try {
+        const parsed = mentorBroadcastSchema.safeParse(req.body);
+        if (!parsed.success) return respondWithValidationErrors(res, parsed.error.errors);
+
+        const studentIds = await getAssignedStudentIds(req.user.id);
+        const tasks = studentIds.length === 0
+            ? []
+            : await Task.insertMany(studentIds.map((studentId) => ({
+                ...parsed.data,
+                user: studentId,
+                source: 'mentor',
+            })));
+        res.status(201).json({
+            success: true,
+            message: 'Task broadcast successfully',
+            count: tasks.length,
         });
     } catch (err) {
         next(err);
