@@ -10,6 +10,8 @@ import Tasks from './pages/Tasks.jsx';
 import Announcements from './pages/Announcements.jsx';
 import Assistant from './pages/Assistant.jsx';
 import Documents from './pages/Documents.jsx';
+import Roadmaps from './pages/Roadmaps.jsx';
+import RoadmapDetail from './pages/RoadmapDetail.jsx';
 import StudentDashboard from './pages/StudentDashboard.jsx';
 import MentorDashboard from './pages/MentorDashboard.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
@@ -48,6 +50,22 @@ export default function App() {
                 element={
                     <RoleRoute role="student">
                         <Tasks />
+                    </RoleRoute>
+                }
+            />
+            <Route
+                path="/roadmaps"
+                element={
+                    <RoleRoute role="student">
+                        <Roadmaps />
+                    </RoleRoute>
+                }
+            />
+            <Route
+                path="/roadmaps/:id"
+                element={
+                    <RoleRoute role="student">
+                        <RoadmapDetail />
                     </RoleRoute>
                 }
             />

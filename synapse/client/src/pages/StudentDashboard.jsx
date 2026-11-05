@@ -24,6 +24,7 @@ export default function StudentDashboard() {
     const [showTaskForm, setShowTaskForm] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
     const [isSavingTask, setIsSavingTask] = useState(false);
+    const [roadmapProgress, setRoadmapProgress] = useState(null);
 
     const loadTasks = useCallback(async () => {
         setTasksLoading(true);
@@ -41,6 +42,19 @@ export default function StudentDashboard() {
     useEffect(() => {
         loadTasks();
     }, [loadTasks]);
+
+    useEffect(() => {
+        const loadRoadmapProgress = async () => {
+            try {
+                const { data } = await api.get('/roadmaps');
+                const activeRoadmap = (data.roadmaps || []).find((roadmap) => roadmap.status === 'active');
+                setRoadmapProgress(activeRoadmap?.progress?.completionPercent ?? null);
+            } catch {
+                setRoadmapProgress(null);
+            }
+        };
+        loadRoadmapProgress();
+    }, []);
 
     const pendingTasks = useMemo(
         () => sortTasksByDeadline(tasks.filter((task) => task.status !== 'completed')),
@@ -143,6 +157,7 @@ export default function StudentDashboard() {
                     <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
                     <button onClick={() => navigate('/tasks')} className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">My tasks</button>
                     <Link to="/announcements" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Announcements</Link>
+                    <Link to="/roadmaps" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Roadmaps</Link>
                     <Link to="/assistant" className="btn-primary text-xs sm:text-sm px-3 sm:px-4 py-2">Ask the assistant</Link>
                     <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
                 </div>
@@ -165,7 +180,7 @@ export default function StudentDashboard() {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
                     <StatCard num="7" label="Tasks this week" />
                     <StatCard num="3" label="Completed" />
-                    <StatCard num="68%" label="Roadmap progress" />
+                    <StatCard num={roadmapProgress === null ? '—' : `${roadmapProgress}%`} label="Roadmap progress" />
                     <StatCard num={`${user?.dailyHours || 0}h`} label="Daily target" />
                 </div>
 

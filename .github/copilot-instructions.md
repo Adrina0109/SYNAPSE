@@ -48,3 +48,15 @@ Keep JavaScript in ES module style and match the existing formatting and naming 
 - All AI calls (Gemini) go through one shared service, `synapse/server/src/services/aiClient.js`, once it exists. Never call the AI SDK directly from controllers. AI environment variable names will be `GEMINI_API_KEY`, `GEMINI_MODEL` and `GEMINI_EMBED_MODEL`.
 - AI output is always treated as untrusted: validate it with Zod before saving, and never save AI-generated data without the user's confirmation.
 - Any new server environment variable must also be added (name only, no value) to `synapse/server/.env.example`.
+
+## Roadmaps
+
+- Roadmaps use a preview-then-save flow: generated plans are previews and are not persisted until the student saves them.
+- AI returns resource search queries only; build resource URLs on the server.
+- Reuse `server/src/utils/dateHelpers.js` for IST date-day logic. A streak counts consecutive IST days with completed roadmap days, starting today if completed today or yesterday otherwise.
+- Limit students to 5 unfinished roadmaps at a time.
+
+## Certifications and notes
+
+- Certification cost classification comes only from `server/src/data/certificationCatalog.js`; AI may choose between catalog entries but never decides or states cost. Every catalog entry must include `lastVerified`.
+- Generate revision notes on demand and store them on the corresponding roadmap day.
