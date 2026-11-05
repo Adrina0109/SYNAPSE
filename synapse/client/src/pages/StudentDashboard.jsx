@@ -12,6 +12,8 @@ import {
     UpcomingDeadlinesCard,
     WeekPlanCard,
 } from '../components/dashboard/DashboardCards.jsx';
+import TaskForm from '../components/tasks/TaskForm.jsx';
+import TaskItem from '../components/tasks/TaskItem.jsx';
 import { sortTasksByDeadline } from '../components/tasks/taskHelpers.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTaskStats } from '../context/TaskStatsContext.jsx';
@@ -722,14 +724,18 @@ export default function StudentDashboard() {
                         </div>
                     )}
                     {tasksLoading ? (
-                        <div className="card-hard p-5"><Loading label="Loading tasks" /></div>
+                        <div className="card-hard p-5" role="status" aria-label="Loading tasks">
+                            <Skeleton className="h-24 w-full" />
+                        </div>
                     ) : tasksError ? (
                         <div className="card-hard p-5 text-center" role="alert">
                             <p className="mb-3 font-body text-sm text-signal">{tasksError}</p>
                             <button type="button" onClick={loadTasks} className="btn-secondary px-4 py-2 text-sm">Try again</button>
                         </div>
                     ) : pendingTasks.length === 0 ? (
-                        <div className="card-hard p-5 text-center"><Empty>No pending tasks. Add one to get started.</Empty></div>
+                        <div className="card-hard p-5 text-center">
+                            <p className="font-body text-sm text-text-muted">No pending tasks. Add one to get started.</p>
+                        </div>
                     ) : (
                         <div className="space-y-3">
                             {pendingTasks.slice(0, 6).map((task) => (
