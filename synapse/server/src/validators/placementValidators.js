@@ -26,3 +26,12 @@ export const mockBodySchema = z.object({
     rating: z.number().int().min(1).max(5),
     notes: z.string().trim().max(500).optional().default(''),
 }).strict();
+
+export const resumeGapBodySchema = z.object({
+    jobDescription: z.string().trim().min(80).max(8000),
+    resumeText: z.string().trim().max(20000).optional(),
+}).strict();
+
+export const toRoadmapBodySchema = z.object({
+    missingSkills: z.array(z.string().trim().max(60)).min(1).max(8),
+}).strict();

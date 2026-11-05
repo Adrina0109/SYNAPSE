@@ -1,3 +1,8 @@
+import User from '../models/User.js';
+import { analyzeResume } from '../services/resumeService.js';
+import { extractText } from '../services/ragService.js';
+import { buildRoadmapPreview } from '../services/roadmapService.js';
+import { startOfISTDay } from '../utils/dateHelpers.js';
 import {
     addMockSession,
     getChecklistForUser,
@@ -12,6 +17,8 @@ import {
     mockBodySchema,
     mockParamsSchema,
     roadmapIdParamsSchema,
+    resumeGapBodySchema,
+    toRoadmapBodySchema,
 } from '../validators/placementValidators.js';
 
 const validationErrors = (issues) => {
@@ -135,6 +142,74 @@ export const addMockHandler = async (req, res, next) => {
             success: true,
             message: 'Mock interview recorded successfully',
             checklist,
+        });
+    } catch (error) {
+        handleError(error, res, next);
+    }
+};
+
+export const resumeGap = async (req, res, next) => {
+    try {
+        const parsed = resumeGapBodySchema.safeParse(req.body);
+        if (!parsed.success) return respondWithValidationErrors(res, parsed.error.errors);
+
+        let resumeText = parsed.data.resumeText || '';
+        if (req.file) {
+            const pages = await extractText(req.file.buffer, req.file.mimetype);
+            resumeText = pages.map(({ text }) => text).join('\n').trim();
+        }
+        if (resumeText.length < 80) {
+            return res.status(400).json({
+                success: false,
+                message: 'Validation failed',
+                errors: { resume: 'Upload a PDF or TXT, or paste your resume text.' },
+            });
+        }
+
+        const analysis = await analyzeResume({
+            resumeText,
+            jobDescription: parsed.data.jobDescription,
+        });
+        res.status(200).json({
+            success: true,
+            message: 'Resume analyzed successfully',
+            ...analysis,
+        });
+    } catch (error) {
+        handleError(error, res, next);
+    }
+};
+
+export const resumeToRoadmap = async (req, res, next) => {
+    try {
+        const parsed = toRoadmapBodySchema.safeParse(req.body);
+        if (!parsed.success) return respondWithValidationErrors(res, parsed.error.errors);
+
+        const user = await User.findById(req.user.id)
+            .select('dailyHours skills careerGoal targetRole')
+            .lean();
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'Authentication required. Please log in.' });
+        }
+
+        const hoursPerDay = typeof user.dailyHours === 'number'
+            ? Math.min(8, Math.max(0.5, user.dailyHours))
+            : 2;
+        const { roadmap, certificationAlternatives } = await buildRoadmapPreview({
+            goal: `Learn ${parsed.data.missingSkills.join(', ')}`.slice(0, 200),
+            currentLevel: 'beginner',
+            hoursPerDay,
+            durationDays: 14,
+            preferredResources: ['docs', 'youtube'],
+            pathType: 'free_learning',
+            startDate: startOfISTDay(),
+        }, user);
+
+        res.status(200).json({
+            success: true,
+            message: 'Roadmap generated successfully. Review it before saving.',
+            roadmap,
+            certificationAlternatives,
         });
     } catch (error) {
         handleError(error, res, next);
