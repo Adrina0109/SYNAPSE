@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import Task from '../models/Task.js';
 import { getConflictsForTasks } from '../services/capacityService.js';
+import { invalidateDigest } from '../services/digestService.js';
+import { getTaskStats } from '../services/taskStatsService.js';
 import { createTaskSchema, taskQuerySchema, updateTaskSchema } from '../validators/taskValidators.js';
 
 const validationErrors = (issues) => {
@@ -70,6 +72,7 @@ export const createTask = async (req, res, next) => {
             source: 'manual',
             completedAt: parsed.data.status === 'completed' ? new Date() : null,
         });
+        invalidateDigest(req.user.id);
 
         const conflicts = await getConflictsForTasks(req.user.id, [task._id]);
         res.status(201).json({
@@ -102,14 +105,18 @@ export const updateTask = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Task not found.' });
         }
 
+        const previousStatus = task.status;
         Object.assign(task, parsed.data);
+        if (parsed.data.status !== undefined) {
+            task.completedAt = parsed.data.status === 'completed'
+                ? (previousStatus === 'completed' ? task.completedAt ?? new Date() : new Date())
+                : null;
+        }
         if (parsed.data.deadline !== undefined || parsed.data.estimatedHours !== undefined) {
             task.workPlan = [];
         }
-        if (parsed.data.status !== undefined) {
-            task.completedAt = parsed.data.status === 'completed' ? new Date() : null;
-        }
         await task.save();
+        invalidateDigest(req.user.id);
 
         const response = { success: true, message: 'Task updated successfully', task };
         if (parsed.data.deadline !== undefined || parsed.data.estimatedHours !== undefined) {
@@ -136,8 +143,10 @@ export const toggleTask = async (req, res, next) => {
         if (wasCompleted) task.workPlan = [];
         task.completedAt = task.status === 'completed' ? new Date() : null;
         await task.save();
+        invalidateDigest(req.user.id);
+        const taskStats = await getTaskStats(req.user.id);
 
-        res.status(200).json({ success: true, message: 'Task status updated successfully', task });
+        res.status(200).json({ success: true, message: 'Task status updated successfully', task, taskStats });
     } catch (err) {
         next(err);
     }
@@ -152,6 +161,7 @@ export const deleteTask = async (req, res, next) => {
         if (!task) {
             return res.status(404).json({ success: false, message: 'Task not found.' });
         }
+        invalidateDigest(req.user.id);
 
         res.status(200).json({ success: true, message: 'Task deleted successfully' });
     } catch (err) {

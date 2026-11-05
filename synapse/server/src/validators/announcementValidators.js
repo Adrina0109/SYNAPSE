@@ -17,6 +17,14 @@ export const announcementTaskSchema = z.object({
     estimatedHours: z.number().min(0).max(100),
 }).strict();
 
+const recipientSelectionShape = {
+    recipientMode: z.enum(['all', 'selected']).default('all'),
+    studentIds: z.array(z.string().regex(/^[a-f\d]{24}$/i, 'Student IDs must be valid ObjectIds'))
+        .min(1)
+        .max(200)
+        .optional(),
+};
+
 const confirmAnnouncementTaskSchema = z.object({
     title: z.string().trim().min(1).max(200),
     description: z.string().max(2000).optional().default(''),
@@ -33,9 +41,16 @@ const confirmAnnouncementTaskSchema = z.object({
 export const createAnnouncementSchema = z.object({
     rawText: z.string().trim().min(1).max(20000),
     sourceType: announcementSourceTypeSchema.optional().default('other'),
-    audience: z.enum(['all', 'assigned']).optional(),
-    targetMentorId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
-}).strict();
+    ...recipientSelectionShape,
+}).strict().superRefine((data, ctx) => {
+    if (data.recipientMode === 'selected' && !data.studentIds) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['studentIds'],
+            message: 'Select at least one student.',
+        });
+    }
+});
 
 export const confirmAnnouncementSchema = z.object({
     tasks: z.array(confirmAnnouncementTaskSchema).max(15),

@@ -23,7 +23,7 @@ const toDateTimeLocal = (date) => {
     return localDate.toISOString().slice(0, 16);
 };
 
-export default function TaskForm({ task = null, onSubmit, onCancel, isSaving = false }) {
+export default function TaskForm({ task = null, onSubmit, onCancel, onTaskChanged, isSaving = false }) {
     const {
         register,
         handleSubmit,
@@ -41,16 +41,20 @@ export default function TaskForm({ task = null, onSubmit, onCancel, isSaving = f
             description: task.description || '',
             category: task.category,
             priority: task.priority,
+            status: task.status,
             deadline: toDateTimeLocal(task.deadline),
             estimatedHours: task.estimatedHours ?? 1,
         } : EMPTY_FORM);
     }, [task, reset]);
 
     const submit = async (values) => {
-        await onSubmit({
-            ...values,
+        const { status, ...taskValues } = values;
+        const saved = await onSubmit({
+            ...taskValues,
+            ...(task && status ? { status } : {}),
             deadline: values.deadline ? new Date(values.deadline).toISOString() : null,
         });
+        if (saved !== false) onTaskChanged?.();
     };
 
     return (
@@ -75,6 +79,16 @@ export default function TaskForm({ task = null, onSubmit, onCancel, isSaving = f
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {task && (
+                    <div>
+                        <label htmlFor="task-status" className="block font-body text-sm font-medium text-ink mb-2">Status</label>
+                        <select id="task-status" {...register('status')} className="input-base">
+                            <option value="pending">Pending</option>
+                            <option value="in_progress">In progress</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+                )}
                 <div>
                     <label htmlFor="task-category" className="block font-body text-sm font-medium text-ink mb-2">Category</label>
                     <select id="task-category" {...register('category')} className="input-base">

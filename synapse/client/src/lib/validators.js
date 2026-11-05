@@ -65,6 +65,7 @@ export const taskFormSchema = z.object({
     description: z.string().max(2000, 'Description cannot exceed 2000 characters'),
     category: z.enum(['assessment', 'assignment', 'placement', 'event', 'personal']),
     priority: z.enum(['low', 'medium', 'high']),
+    status: z.enum(['pending', 'in_progress', 'completed']).optional(),
     deadline: z.string().refine(
         (value) => !value || !Number.isNaN(Date.parse(value)),
         'Enter a valid deadline'

@@ -3,10 +3,10 @@ import Announcement from '../models/Announcement.js';
 import AnnouncementReceipt from '../models/AnnouncementReceipt.js';
 import Notification from '../models/Notification.js';
 import Task from '../models/Task.js';
-import User from '../models/User.js';
 import { getConflictsForTasks } from '../services/capacityService.js';
+import { invalidateDigest } from '../services/digestService.js';
 import { extractTasksFromText } from '../services/announcementService.js';
-import { getAssignedStudentIds } from '../utils/mentorHelpers.js';
+import { resolveRecipientStudentIds } from '../utils/mentorHelpers.js';
 import {
     announcementIdParamsSchema,
     confirmAnnouncementSchema,
@@ -41,7 +41,7 @@ const publicAnnouncement = (announcement) => ({
     _id: announcement._id,
     rawText: announcement.rawText,
     sourceType: announcement.sourceType,
-    audience: announcement.audience,
+    recipientMode: announcement.recipientMode,
     recipientCount: announcement.recipientCount,
     createdAt: announcement.createdAt,
 });
@@ -66,34 +66,12 @@ export const createAnnouncement = async (req, res, next) => {
         const parsed = createAnnouncementSchema.safeParse(req.body);
         if (!parsed.success) return respondWithValidationErrors(res, parsed.error.errors);
 
-        let audience = parsed.data.audience;
-        let targetMentorId = null;
-        let studentIds;
-
-        if (req.userRole === 'mentor') {
-            audience = 'assigned';
-            studentIds = await getAssignedStudentIds(req.user.id);
-        } else if (audience === 'assigned') {
-            if (!parsed.data.targetMentorId) {
-                return res.status(400).json({
-                    success: false,
-                    message: 'A mentor is required when targeting assigned students.',
-                });
-            }
-            const mentor = await User.findOne({
-                _id: parsed.data.targetMentorId,
-                role: 'mentor',
-            }).select('_id').lean();
-            if (!mentor) {
-                return res.status(400).json({ success: false, message: 'Target mentor not found.' });
-            }
-            targetMentorId = mentor._id;
-            studentIds = await getAssignedStudentIds(mentor._id);
-        } else {
-            audience = 'all';
-            const students = await User.find({ role: 'student' }).select('_id').lean();
-            studentIds = students.map(({ _id }) => _id);
-        }
+        const studentIds = await resolveRecipientStudentIds(
+            req.user.id,
+            req.userRole,
+            parsed.data.recipientMode,
+            parsed.data.studentIds
+        );
 
         session = await mongoose.startSession();
         let announcement;
@@ -102,8 +80,8 @@ export const createAnnouncement = async (req, res, next) => {
                 createdBy: req.user.id,
                 rawText: parsed.data.rawText,
                 sourceType: parsed.data.sourceType,
-                audience,
-                targetMentorId,
+                audience: parsed.data.recipientMode === 'all' ? 'all' : 'assigned',
+                recipientMode: parsed.data.recipientMode,
                 recipientCount: studentIds.length,
             }], { session });
 
@@ -134,7 +112,7 @@ export const getSentAnnouncements = async (req, res, next) => {
         const filter = req.userRole === 'admin' ? {} : { createdBy: req.user.id };
         const announcements = await Announcement.find(filter)
             .sort({ createdAt: -1 })
-            .select('_id rawText sourceType audience recipientCount createdAt')
+            .select('_id rawText sourceType audience recipientMode recipientCount createdAt')
             .lean();
 
         res.status(200).json({
@@ -292,6 +270,7 @@ export const confirmAnnouncementTasks = async (req, res, next) => {
             );
         });
 
+        invalidateDigest(req.user.id);
         const conflicts = createdTasks.length === 0
             ? []
             : await getConflictsForTasks(req.user.id, createdTasks.map((task) => task._id));

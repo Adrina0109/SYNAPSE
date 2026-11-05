@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar.jsx';
 import api from '../lib/api.js';
@@ -24,9 +24,14 @@ export default function AdminDashboard() {
     const [stats, setStats] = useState(null);
     const [statsLoading, setStatsLoading] = useState(true);
     const [statsError, setStatsError] = useState('');
+    const assignmentsRequestId = useRef(0);
+    const statsRequestId = useRef(0);
+    const hasAssignmentsLoaded = useRef(false);
+    const hasStatsLoaded = useRef(false);
 
     const loadAssignments = useCallback(async () => {
-        setIsLoading(true);
+        const requestId = ++assignmentsRequestId.current;
+        if (!hasAssignmentsLoaded.current) setIsLoading(true);
         setError('');
         try {
             const [studentsResponse, mentorsResponse] = await Promise.all([
@@ -35,12 +40,17 @@ export default function AdminDashboard() {
                 }),
                 api.get('/admin/mentors'),
             ]);
-            setStudents(studentsResponse.data.users || []);
-            setMentors(mentorsResponse.data.mentors || []);
+            if (requestId === assignmentsRequestId.current) {
+                hasAssignmentsLoaded.current = true;
+                setStudents(studentsResponse.data.users || []);
+                setMentors(mentorsResponse.data.mentors || []);
+            }
         } catch (requestError) {
-            setError(requestError.response?.data?.message || 'Could not load mentor assignments. Please try again.');
+            if (requestId === assignmentsRequestId.current) {
+                setError(requestError.response?.data?.message || 'Could not load mentor assignments. Please try again.');
+            }
         } finally {
-            setIsLoading(false);
+            if (requestId === assignmentsRequestId.current) setIsLoading(false);
         }
     }, [unassignedOnly]);
 
@@ -49,21 +59,41 @@ export default function AdminDashboard() {
     }, [loadAssignments]);
 
     const loadStats = useCallback(async () => {
-        setStatsLoading(true);
+        const requestId = ++statsRequestId.current;
+        if (!hasStatsLoaded.current) setStatsLoading(true);
         setStatsError('');
         try {
             const { data } = await api.get('/admin/stats');
-            setStats(data.stats ?? null);
+            if (requestId === statsRequestId.current) {
+                hasStatsLoaded.current = true;
+                setStats(data.stats ?? null);
+            }
         } catch (requestError) {
-            setStatsError(requestError.response?.data?.message || 'Could not load admin stats. Please try again.');
+            if (requestId === statsRequestId.current) {
+                setStatsError(requestError.response?.data?.message || 'Could not load admin stats. Please try again.');
+            }
         } finally {
-            setStatsLoading(false);
+            if (requestId === statsRequestId.current) setStatsLoading(false);
         }
     }, []);
 
     useEffect(() => {
         loadStats();
     }, [loadStats]);
+
+    useEffect(() => {
+        const refreshVisibleDashboard = () => {
+            if (document.visibilityState !== 'visible') return;
+            loadAssignments();
+            loadStats();
+        };
+        const intervalId = window.setInterval(refreshVisibleDashboard, 60000);
+        window.addEventListener('focus', refreshVisibleDashboard);
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', refreshVisibleDashboard);
+        };
+    }, [loadAssignments, loadStats]);
 
     const filteredStudents = useMemo(() => {
         const normalizedSearch = search.trim().toLowerCase();
@@ -155,13 +185,19 @@ export default function AdminDashboard() {
                             <button type="button" onClick={loadStats} className="btn-secondary px-4 py-2 text-sm">Retry</button>
                         </div>
                     ) : stats ? (
-                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 sm:gap-4">
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 sm:gap-4">
                             <MetricCard num={stats.usersByRole?.student ?? 0} label="Students" />
                             <MetricCard num={stats.usersByRole?.mentor ?? 0} label="Mentors" />
                             <MetricCard num={stats.usersByRole?.admin ?? 0} label="Admins" />
                             <MetricCard num={stats.documentCount ?? 0} label="Documents" />
                             <MetricCard num={stats.announcementCount ?? 0} label="Announcements" />
                             <MetricCard num={stats.unassignedStudentCount ?? 0} label="Unassigned students" highlight />
+                            <MetricCard num={stats.taskStats?.completed ?? 0} label="Tasks completed" />
+                            <MetricCard num={stats.taskStats?.pending ?? 0} label="Tasks pending" />
+                            <MetricCard num={stats.taskStats?.overdue ?? 0} label="Tasks overdue" highlight />
+                            <MetricCard num={stats.taskStats?.dueInThreeDays ?? 0} label="Due in 3 days" />
+                            <MetricCard num={`${stats.taskStats?.completionRate ?? 0}%`} label="Task completion" />
+                            <MetricCard num={stats.taskStats?.completedThisWeek ?? 0} label="Completed this week" />
                         </div>
                     ) : (
                         <div className="card-hard p-5">

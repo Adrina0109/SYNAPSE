@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { formatTaskDeadline, getTaskUrgencyClass, labelizeTaskValue } from './taskHelpers.js';
 
-export default function TaskItem({ task, onToggle, onEdit, onDelete }) {
+export default function TaskItem({ task, onToggle, onEdit, onDelete, onTaskChanged, isToggling = false }) {
     const [confirmingDelete, setConfirmingDelete] = useState(false);
 
     const confirmDelete = async () => {
         const deleted = await onDelete(task);
-        if (deleted !== false) setConfirmingDelete(false);
+        if (deleted !== false) {
+            setConfirmingDelete(false);
+            onTaskChanged?.();
+        }
     };
 
     return (
@@ -15,7 +18,11 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }) {
                 <input
                     type="checkbox"
                     checked={task.status === 'completed'}
-                    onChange={() => onToggle(task)}
+                    onChange={async () => {
+                        const updated = await onToggle(task);
+                        if (updated !== false) onTaskChanged?.();
+                    }}
+                    disabled={isToggling}
                     aria-label={`${task.status === 'completed' ? 'Reopen' : 'Complete'} ${task.title}`}
                     className="mt-1 h-4 w-4 flex-shrink-0 accent-forest"
                 />

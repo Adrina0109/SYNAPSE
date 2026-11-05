@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Navbar from '../components/Navbar.jsx';
+import RecipientSelector from '../components/RecipientSelector.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
+import { useTaskStats } from '../context/TaskStatsContext.jsx';
 
 const riskTone = {
     high: 'border-signal/40 bg-signal/10 text-signal',
@@ -35,6 +37,7 @@ const dateLabel = (value) => {
 
 export default function MentorDashboard() {
     const { user } = useAuth();
+    const { notifyTasksChanged } = useTaskStats();
     const [students, setStudents] = useState([]);
     const [studentsLoading, setStudentsLoading] = useState(true);
     const [studentsError, setStudentsError] = useState('');
@@ -48,6 +51,11 @@ export default function MentorDashboard() {
     const [summary, setSummary] = useState(null);
     const [summaryLoading, setSummaryLoading] = useState(false);
     const [summaryError, setSummaryError] = useState('');
+    const [recipients, setRecipients] = useState([]);
+    const [recipientsLoading, setRecipientsLoading] = useState(true);
+    const [recipientsError, setRecipientsError] = useState('');
+    const [recipientMode, setRecipientMode] = useState('all');
+    const [selectedStudentIds, setSelectedStudentIds] = useState([]);
     const [broadcast, setBroadcast] = useState({
         title: '',
         description: '',
@@ -58,36 +66,83 @@ export default function MentorDashboard() {
     const [broadcastLoading, setBroadcastLoading] = useState(false);
     const [broadcastError, setBroadcastError] = useState('');
     const [broadcastFeedback, setBroadcastFeedback] = useState('');
+    const studentsRequestId = useRef(0);
+    const analyticsRequestId = useRef(0);
+    const hasStudentsLoaded = useRef(false);
+    const hasAnalyticsLoaded = useRef(false);
 
     const loadStudents = useCallback(async () => {
-        setStudentsLoading(true);
+        const requestId = ++studentsRequestId.current;
+        if (!hasStudentsLoaded.current) setStudentsLoading(true);
         setStudentsError('');
         try {
             const { data } = await api.get('/mentor/students');
-            setStudents(Array.isArray(data.students) ? data.students : []);
+            if (requestId === studentsRequestId.current) {
+                hasStudentsLoaded.current = true;
+                setStudents(Array.isArray(data.students) ? data.students : []);
+            }
         } catch (error) {
-            setStudentsError(error.response?.data?.message || 'Could not load assigned students. Please try again.');
+            if (requestId === studentsRequestId.current) {
+                setStudentsError(error.response?.data?.message || 'Could not load assigned students. Please try again.');
+            }
         } finally {
-            setStudentsLoading(false);
+            if (requestId === studentsRequestId.current) setStudentsLoading(false);
         }
     }, []);
 
     const loadAnalytics = useCallback(async () => {
-        setAnalyticsLoading(true);
+        const requestId = ++analyticsRequestId.current;
+        if (!hasAnalyticsLoaded.current) setAnalyticsLoading(true);
         setAnalyticsError('');
         try {
             const { data } = await api.get('/mentor/analytics');
-            setAnalytics(data.analytics ?? null);
+            if (requestId === analyticsRequestId.current) {
+                hasAnalyticsLoaded.current = true;
+                setAnalytics(data.analytics ?? null);
+            }
         } catch (error) {
-            setAnalyticsError(error.response?.data?.message || 'Could not load class analytics. Please try again.');
+            if (requestId === analyticsRequestId.current) {
+                setAnalyticsError(error.response?.data?.message || 'Could not load class analytics. Please try again.');
+            }
         } finally {
-            setAnalyticsLoading(false);
+            if (requestId === analyticsRequestId.current) setAnalyticsLoading(false);
+        }
+    }, []);
+
+    const loadRecipients = useCallback(async () => {
+        setRecipientsLoading(true);
+        setRecipientsError('');
+        try {
+            const { data } = await api.get('/mentor/recipients');
+            setRecipients(data.students || []);
+            setSelectedStudentIds((current) => current.filter(
+                (id) => (data.students || []).some((student) => student._id === id)
+            ));
+        } catch (error) {
+            setRecipientsError(error.response?.data?.message || 'Could not load selectable students.');
+        } finally {
+            setRecipientsLoading(false);
         }
     }, []);
 
     useEffect(() => {
         loadStudents();
         loadAnalytics();
+        loadRecipients();
+    }, [loadAnalytics, loadRecipients, loadStudents]);
+
+    useEffect(() => {
+        const refreshVisibleDashboard = () => {
+            if (document.visibilityState !== 'visible') return;
+            loadStudents();
+            loadAnalytics();
+        };
+        const intervalId = window.setInterval(refreshVisibleDashboard, 60000);
+        window.addEventListener('focus', refreshVisibleDashboard);
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', refreshVisibleDashboard);
+        };
     }, [loadAnalytics, loadStudents]);
 
     const openStudent = async (student) => {
@@ -124,6 +179,11 @@ export default function MentorDashboard() {
 
     const submitBroadcast = async (event) => {
         event.preventDefault();
+        if (recipientsLoading || recipientsError || recipients.length === 0) return;
+        if (recipientMode === 'selected' && selectedStudentIds.length === 0) {
+            setBroadcastError('Select at least one student.');
+            return;
+        }
         setBroadcastLoading(true);
         setBroadcastError('');
         setBroadcastFeedback('');
@@ -132,8 +192,14 @@ export default function MentorDashboard() {
                 ...broadcast,
                 deadline: broadcast.deadline ? new Date(broadcast.deadline).toISOString() : null,
                 estimatedHours: Number(broadcast.estimatedHours),
+                recipientMode,
+                ...(recipientMode === 'selected' ? { studentIds: selectedStudentIds } : {}),
             });
-            setBroadcastFeedback(`Task sent to ${data.count} student${data.count === 1 ? '' : 's'}.`);
+            const recipientCount = data.recipientCount ?? data.count ?? 0;
+            setBroadcastFeedback(`Task sent to ${recipientCount} student${recipientCount === 1 ? '' : 's'}.`);
+            notifyTasksChanged();
+            loadStudents();
+            loadAnalytics();
             setBroadcast({
                 title: '',
                 description: '',
@@ -142,16 +208,24 @@ export default function MentorDashboard() {
                 estimatedHours: '1',
             });
         } catch (error) {
-            setBroadcastError(error.response?.data?.message || 'Could not broadcast this task. Please try again.');
+            if (error.response?.status === 403) {
+                setBroadcastError('You can only send tasks to students assigned to you. Refresh the student list and try again.');
+            } else if (error.response?.status === 400) {
+                setBroadcastError(error.response?.data?.message || 'Check the selected recipients and task details.');
+            } else {
+                setBroadcastError(error.response?.data?.message || 'Could not broadcast this task. Please try again.');
+            }
         } finally {
             setBroadcastLoading(false);
         }
     };
 
+    const broadcastRecipientCount = recipientMode === 'all' ? recipients.length : selectedStudentIds.length;
     const studentTotals = useMemo(() => ({
-        pending: students.reduce((sum, student) => sum + (student.pendingTaskCount || 0), 0),
-        overdue: students.reduce((sum, student) => sum + (student.overdueTaskCount || 0), 0),
-    }), [students]);
+        pending: analytics?.taskStats?.pending ?? students.reduce((sum, student) => sum + (student.pendingTaskCount || 0), 0),
+        completed: analytics?.taskStats?.completed ?? students.reduce((sum, student) => sum + (student.completedTaskCount || 0), 0),
+        overdue: analytics?.taskStats?.overdue ?? students.reduce((sum, student) => sum + (student.overdueTaskCount || 0), 0),
+    }), [analytics?.taskStats, students]);
     const riskDistribution = analytics?.riskDistribution ?? { low: 0, medium: 0, high: 0 };
     const riskTotal = ['high', 'medium', 'low'].reduce((sum, risk) => sum + (riskDistribution[risk] || 0), 0);
 
@@ -240,6 +314,10 @@ export default function MentorDashboard() {
                         <p className="font-display text-3xl font-bold text-forest">{studentTotals.pending}</p>
                         <p className="section-label mt-1">Pending tasks</p>
                     </div>
+                    <div className="card-hard p-4 text-center sm:p-5">
+                        <p className="font-display text-3xl font-bold text-ink">{studentTotals.completed}</p>
+                        <p className="section-label mt-1">Completed tasks</p>
+                    </div>
                     <div className="card-hard col-span-2 p-4 text-center sm:col-span-1 sm:p-5">
                         <p className="font-display text-3xl font-bold text-signal">{studentTotals.overdue}</p>
                         <p className="section-label mt-1">Overdue tasks</p>
@@ -290,6 +368,7 @@ export default function MentorDashboard() {
                                             <td className="px-4 py-4"><RiskBadge risk={student.risk} /></td>
                                             <td className="px-4 py-4">
                                                 <p className="whitespace-nowrap font-mono text-xs text-ink">{student.pendingTaskCount || 0} pending</p>
+                                                <p className="mt-1 whitespace-nowrap font-mono text-xs text-forest">{student.completedTaskCount || 0} completed</p>
                                                 <p className="mt-1 whitespace-nowrap font-mono text-xs text-signal">{student.overdueTaskCount || 0} overdue</p>
                                             </td>
                                             <td className="px-4 py-4 font-mono text-sm text-ink">{student.readiness?.score ?? '—'}{student.readiness ? '/100' : ''}</td>
@@ -334,12 +413,27 @@ export default function MentorDashboard() {
                             <label htmlFor="broadcast-hours" className="mb-1 block font-body text-sm font-medium text-ink">Estimated hours</label>
                             <input id="broadcast-hours" type="number" min="0" max="100" step="0.5" required value={broadcast.estimatedHours} onChange={(event) => setBroadcast({ ...broadcast, estimatedHours: event.target.value })} className="input-base" />
                         </div>
+                        <RecipientSelector
+                            recipients={recipients}
+                            loading={recipientsLoading}
+                            error={recipientsError}
+                            onRetry={loadRecipients}
+                            isAdmin={user?.role === 'admin'}
+                            recipientMode={recipientMode}
+                            setRecipientMode={setRecipientMode}
+                            selectedStudentIds={selectedStudentIds}
+                            setSelectedStudentIds={setSelectedStudentIds}
+                        />
+                        {broadcastRecipientCount > 0 && (
+                            <p className="font-body text-sm text-ink-muted sm:col-span-2" role="status">
+                                This will notify {broadcastRecipientCount} {broadcastRecipientCount === 1 ? 'student' : 'students'}.
+                            </p>
+                        )}
                         <div className="flex items-end">
-                            <button type="submit" disabled={broadcastLoading || students.length === 0} className="btn-primary w-full sm:w-auto">
-                                {broadcastLoading ? 'Sending…' : 'Send to assigned students'}
+                            <button type="submit" disabled={broadcastLoading || recipientsLoading || Boolean(recipientsError) || recipients.length === 0 || (recipientMode === 'selected' && selectedStudentIds.length === 0)} className="btn-primary w-full sm:w-auto">
+                                {broadcastLoading ? 'Sending…' : 'Send task'}
                             </button>
                         </div>
-                        {students.length === 0 && !studentsLoading && <p className="font-body text-xs text-ink-faint sm:col-span-2">Assign students before broadcasting a task.</p>}
                     </form>
                 </section>
             </main>

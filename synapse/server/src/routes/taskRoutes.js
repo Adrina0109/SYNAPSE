@@ -1,12 +1,13 @@
 import express from 'express';
 import { createTask, deleteTask, getTasks, toggleTask, updateTask } from '../controllers/taskController.js';
 import { requireAuth } from '../middleware/auth.js';
+import noStore from '../middleware/noStore.js';
 
 const router = express.Router();
 
 router.use(requireAuth);
 
-router.get('/', getTasks);
+router.get('/', noStore, getTasks);
 router.post('/', createTask);
 router.patch('/:id/toggle', toggleTask);
 router.patch('/:id', updateTask);
