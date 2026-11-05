@@ -4,14 +4,14 @@ import { Link } from 'react-router-dom';
 // ─── SVG Logo ────────────────────────────────────────────────────────────────
 const Logo = () => (
     <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-        <circle cx="4" cy="14" r="2.5" fill="#E8401C" />
-        <circle cx="14" cy="6" r="2.5" fill="#E8401C" />
-        <circle cx="24" cy="14" r="2.5" fill="#E8401C" />
-        <circle cx="14" cy="22" r="2.5" fill="#E8401C" />
-        <line x1="4" y1="14" x2="14" y2="6" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.35" />
-        <line x1="14" y1="6" x2="24" y2="14" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.35" />
-        <line x1="24" y1="14" x2="14" y2="22" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.35" />
-        <line x1="14" y1="22" x2="4" y2="14" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.35" />
+        <circle cx="4" cy="14" r="2.5" fill="var(--accent)" />
+        <circle cx="14" cy="6" r="2.5" fill="var(--accent)" />
+        <circle cx="24" cy="14" r="2.5" fill="var(--accent)" />
+        <circle cx="14" cy="22" r="2.5" fill="var(--accent)" />
+        <line x1="4" y1="14" x2="14" y2="6" stroke="var(--text)" strokeWidth="1.5" strokeOpacity="0.35" />
+        <line x1="14" y1="6" x2="24" y2="14" stroke="var(--text)" strokeWidth="1.5" strokeOpacity="0.35" />
+        <line x1="24" y1="14" x2="14" y2="22" stroke="var(--text)" strokeWidth="1.5" strokeOpacity="0.35" />
+        <line x1="14" y1="22" x2="4" y2="14" stroke="var(--text)" strokeWidth="1.5" strokeOpacity="0.35" />
     </svg>
 );
 
@@ -63,7 +63,7 @@ const HeroSignalSVG = () => {
                         key={i}
                         x1={a.cx} y1={a.cy}
                         x2={b.cx} y2={b.cy}
-                        stroke="#E8401C"
+                        stroke="var(--accent)"
                         strokeWidth="1.5"
                         strokeOpacity="0.3"
                         strokeDasharray="320"
@@ -88,19 +88,19 @@ const HeroSignalSVG = () => {
                     <rect
                         x={n.cx - 52} y={n.cy - 20}
                         width="104" height="40"
-                        fill="#F4EFE6"
-                        stroke="#16140F"
+                        fill="var(--surface)"
+                        stroke="var(--text)"
                         strokeOpacity="0.15"
                         strokeWidth="1"
                         rx="2"
                     />
                     {/* Dot */}
-                    <circle cx={n.cx} cy={n.cy - 24} r="3.5" fill="#16140F" fillOpacity="0.25" />
+                    <circle cx={n.cx} cy={n.cy - 24} r="3.5" fill="var(--text)" fillOpacity="0.25" />
                     {/* Label */}
-                    <text x={n.cx} y={n.cy - 5} textAnchor="middle" fill="#16140F" fontSize="9" fontFamily="JetBrains Mono, monospace" fontWeight="500" fillOpacity="0.7">
+                    <text x={n.cx} y={n.cy - 5} textAnchor="middle" fill="var(--text)" fontSize="9" fontFamily="JetBrains Mono, monospace" fontWeight="500" fillOpacity="0.7">
                         {n.label}
                     </text>
-                    <text x={n.cx} y={n.cy + 9} textAnchor="middle" fill="#16140F" fontSize="8" fontFamily="JetBrains Mono, monospace" fillOpacity="0.45">
+                    <text x={n.cx} y={n.cy + 9} textAnchor="middle" fill="var(--text)" fontSize="8" fontFamily="JetBrains Mono, monospace" fillOpacity="0.45">
                         {n.sub}
                     </text>
                 </g>
@@ -114,13 +114,13 @@ const HeroSignalSVG = () => {
                         <rect
                             x={c.cx - 64} y={c.cy - 28}
                             width="128" height="56"
-                            fill="#E8401C"
+                            fill="var(--accent)"
                             rx="2"
                         />
-                        <text x={c.cx} y={c.cy - 4} textAnchor="middle" fill="white" fontSize="13" fontFamily="Bricolage Grotesque, sans-serif" fontWeight="700">
+                        <text x={c.cx} y={c.cy - 4} textAnchor="middle" fill="var(--accent-foreground)" fontSize="13" fontFamily="Bricolage Grotesque, sans-serif" fontWeight="700">
                             {c.label}
                         </text>
-                        <text x={c.cx} y={c.cy + 13} textAnchor="middle" fill="white" fontSize="9" fontFamily="JetBrains Mono, monospace" fillOpacity="0.8">
+                        <text x={c.cx} y={c.cy + 13} textAnchor="middle" fill="var(--accent-foreground)" fontSize="9" fontFamily="JetBrains Mono, monospace" fillOpacity="0.8">
                             {c.sub}
                         </text>
                     </g>
@@ -133,10 +133,10 @@ const HeroSignalSVG = () => {
 // ─── Scattered paper snippets (Problem section) ───────────────────────────────
 const PaperSnippet = ({ text, from, rotate, className }) => (
     <div
-        className={`absolute bg-white border border-ink/12 px-3 py-2 w-48 ${className}`}
+        className={`absolute w-48 border border-border bg-surface px-3 py-2 ${className}`}
         style={{
             transform: `rotate(${rotate}deg)`,
-            boxShadow: '2px 2px 0 rgba(22,20,15,0.08)',
+            boxShadow: '2px 2px 0 rgb(var(--text-rgb) / 0.08)',
             borderRadius: '1px',
         }}
     >
@@ -201,9 +201,9 @@ const Step = ({ num, title, desc, isLast }) => (
 const FeatCard = ({ title, desc, tag, accent, wide, tall }) => (
     <div
         className={`card-hard p-6 flex flex-col ${wide ? 'col-span-2' : ''} ${tall ? 'row-span-2' : ''}`}
-        style={{ boxShadow: '4px 4px 0 rgba(22,20,15,0.10)', borderRadius: '2px' }}
+        style={{ boxShadow: '0 1px 3px rgb(var(--text-rgb) / 0.08)' }}
     >
-        {tag && <span className={`font-mono text-xs mb-4 self-start px-2 py-0.5 ${accent ? 'bg-signal text-paper' : 'bg-ink/8 text-ink-faint'}`} style={{ borderRadius: '2px' }}>{tag}</span>}
+        {tag && <span className={`mb-4 self-start rounded-full px-2 py-0.5 font-mono text-xs ${accent ? 'bg-signal text-accent-foreground' : 'bg-ink/8 text-ink-faint'}`}>{tag}</span>}
         <h3 className="font-display text-lg font-semibold text-ink mb-2">{title}</h3>
         <p className="font-body text-sm text-ink-muted leading-relaxed">{desc}</p>
     </div>
@@ -237,7 +237,7 @@ export default function Landing() {
                     <h1 className="font-display font-bold text-ink leading-[0.95] tracking-tight mb-6" style={{ fontSize: 'clamp(3rem, 7vw, 5.5rem)' }}>
                         Every message.<br />
                         One<br />
-                        <span style={{ color: '#E8401C' }}>clear path.</span>
+                        <span className="text-accent">clear path.</span>
                     </h1>
 
                     <p className="font-body text-ink-muted text-lg leading-relaxed mb-10 max-w-lg">
@@ -246,7 +246,7 @@ export default function Landing() {
                     </p>
 
                     <div className="flex flex-wrap items-center gap-4">
-                        <Link to="/signup" className="btn-primary text-base px-7 py-3.5" style={{ boxShadow: '4px 4px 0 #C4330F' }}>
+                        <Link to="/signup" className="btn-primary px-7 py-3.5 text-base" style={{ boxShadow: '4px 4px 0 var(--accent-strong)' }}>
                             Join your batch →
                         </Link>
                         <a href="#how" className="btn-secondary text-base px-7 py-3.5">
@@ -297,10 +297,10 @@ export default function Landing() {
                         </div>
 
                         {/* Organised task card */}
-                        <div className="card-hard w-full max-w-sm" style={{ boxShadow: '6px 6px 0 rgba(22,20,15,0.12)' }}>
+                        <div className="card-hard w-full max-w-sm" style={{ boxShadow: '6px 6px 0 rgb(var(--text-rgb) / 0.12)' }}>
                             <div className="px-5 py-3 border-b border-ink/10 flex items-center justify-between">
                                 <span className="font-mono text-xs text-ink-faint uppercase tracking-widest">Today · Nov 4</span>
-                                <span className="font-mono text-xs bg-signal text-paper px-2 py-0.5">3 tasks</span>
+                                <span className="rounded-full bg-signal px-2 py-0.5 font-mono text-xs text-accent-foreground">3 tasks</span>
                             </div>
 
                             {[
@@ -310,7 +310,7 @@ export default function Landing() {
                             ].map((item, i) => (
                                 <div key={i} className="flex items-center gap-3 px-5 py-3 border-b border-ink/8 last:border-0">
                                     <div className={`w-4 h-4 border flex-shrink-0 flex items-center justify-center ${item.done ? 'bg-forest border-forest' : 'border-ink/25'}`} style={{ borderRadius: '1px' }}>
-                                        {item.done && <span className="text-paper text-xs">✓</span>}
+                                        {item.done && <span className="text-bg text-xs">✓</span>}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className={`font-body text-sm ${item.done ? 'line-through text-ink-faint' : 'text-ink'}`}>{item.t}</p>
@@ -452,8 +452,8 @@ export default function Landing() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <div className="lg:col-span-2 card-hard p-8" style={{ borderRadius: '2px', boxShadow: '4px 4px 0 rgba(22,20,15,0.10)' }}>
-                        <span className="font-mono text-xs bg-signal text-paper px-2 py-0.5 mb-4 inline-block" style={{ borderRadius: '2px' }}>Core</span>
+                    <div className="lg:col-span-2 card-hard p-8" style={{ borderRadius: '14px', boxShadow: '0 1px 3px rgb(var(--text-rgb) / 0.08)' }}>
+                        <span className="mb-4 inline-block rounded-full bg-signal px-2 py-0.5 font-mono text-xs text-accent-foreground">Core</span>
                         <h3 className="font-display text-2xl font-bold text-ink mb-3">AI announcement → task</h3>
                         <p className="font-body text-sm text-ink-muted leading-relaxed max-w-md">
                             Paste a WhatsApp forward or email circular. SYNAPSE extracts: what to do, who needs to do it, when it's due — no manual parsing. The same source can generate different tasks for different years or departments.
@@ -485,8 +485,8 @@ export default function Landing() {
                         tag="Placement"
                     />
 
-                    <div className="md:col-span-2 card-hard p-8" style={{ borderRadius: '2px', boxShadow: '4px 4px 0 rgba(22,20,15,0.10)' }}>
-                        <span className="font-mono text-xs bg-ink text-paper px-2 py-0.5 mb-4 inline-block" style={{ borderRadius: '2px' }}>Mentor tools</span>
+                    <div className="md:col-span-2 card-hard p-8" style={{ borderRadius: '14px', boxShadow: '0 1px 3px rgb(var(--text-rgb) / 0.08)' }}>
+                        <span className="mb-4 inline-block rounded-full bg-ink px-2 py-0.5 font-mono text-xs text-paper">Mentor tools</span>
                         <h3 className="font-display text-2xl font-bold text-ink mb-3">At-risk student detection</h3>
                         <p className="font-body text-sm text-ink-muted leading-relaxed max-w-lg">
                             When a student's task completion rate drops or they're consistently behind the roadmap, mentors are surfaced an alert — not an inbox full of emails. Intervene before the deadline, not after.
@@ -496,27 +496,26 @@ export default function Landing() {
             </section>
 
             {/* 7 ── CTA BAND */}
-            <section className="mx-6 lg:mx-10 mb-10" style={{ background: '#E8401C', borderRadius: '2px' }}>
+            <section className="mx-6 mb-10 bg-accent lg:mx-10">
                 <div className="max-w-4xl mx-auto px-8 py-16 text-center">
-                    <p className="font-mono text-xs tracking-widest uppercase text-white/60 mb-4">Ready?</p>
-                    <h2 className="font-display text-4xl lg:text-5xl font-bold text-white leading-tight mb-6">
+                    <p className="mb-4 font-mono text-xs uppercase tracking-widest text-accent-foreground/60">Ready?</p>
+                    <h2 className="mb-6 font-display text-4xl font-bold leading-tight text-accent-foreground lg:text-5xl">
                         Your batch is already talking.<br />Start listening systematically.
                     </h2>
-                    <p className="font-body text-white/75 text-lg mb-10 max-w-lg mx-auto">
+                    <p className="mx-auto mb-10 max-w-lg font-body text-lg text-accent-foreground/75">
                         Sign up as a student. Ask your admin to set up the batch. Don't wait until placement season to get organised.
                     </p>
                     <div className="flex flex-wrap justify-center gap-4">
                         <Link
                             to="/signup"
-                            className="inline-flex items-center gap-2 px-8 py-4 bg-white text-signal font-display font-semibold text-base transition-all hover:bg-paper"
-                            style={{ borderRadius: '2px', boxShadow: '4px 4px 0 rgba(22,20,15,0.25)' }}
+                            className="inline-flex items-center gap-2 rounded-[10px] bg-surface px-8 py-4 font-display text-base font-semibold text-accent transition-all hover:bg-surface-2"
+                            style={{ boxShadow: '0 1px 3px rgb(var(--text-rgb) / 0.15)' }}
                         >
                             Join your batch →
                         </Link>
                         <Link
                             to="/login"
-                            className="inline-flex items-center gap-2 px-8 py-4 bg-transparent text-white font-body font-medium text-base border border-white/40 transition-all hover:bg-white/10"
-                            style={{ borderRadius: '2px' }}
+                            className="inline-flex items-center gap-2 rounded-[10px] border border-accent-foreground/40 bg-transparent px-8 py-4 font-body text-base font-medium text-accent-foreground transition-all hover:bg-accent-foreground/10"
                         >
                             Sign in
                         </Link>

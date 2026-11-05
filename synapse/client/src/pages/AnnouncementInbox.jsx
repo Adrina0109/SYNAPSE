@@ -2,6 +2,10 @@ import { useCallback, useEffect, useState } from 'react';
 import Navbar from '../components/Navbar.jsx';
 import { useTaskStats } from '../context/TaskStatsContext.jsx';
 import api from '../lib/api.js';
+import PageHeader from '../components/ui/PageHeader.jsx';
+import Card from '../components/ui/Card.jsx';
+import EmptyState from '../components/ui/EmptyState.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
 
 const formatDate = (date) => {
     const parsed = new Date(date);
@@ -89,81 +93,116 @@ export default function AnnouncementInbox() {
     };
 
     return (
-        <div className="min-h-screen bg-paper">
-            <Navbar />
-            <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
-                <header className="mb-8">
-                    <p className="section-label mb-2">For you</p>
-                    <h1 className="font-display text-4xl font-bold text-ink sm:text-5xl">Announcement inbox</h1>
-                    <p className="mt-2 font-body text-ink-muted">Review announcements, extract tasks, or dismiss them.</p>
-                </header>
+        <div className="min-w-0">
+            <PageHeader title="AI Inbox" subtitle="Turn emails or WhatsApp texts into actionable tasks." />
 
-                {feedback && <p className="mb-5 border border-forest/30 bg-forest/10 px-4 py-3 text-sm text-forest" role="status">{feedback}</p>}
-                {error && <p className="mb-5 border border-signal/30 bg-signal/10 px-4 py-3 text-sm text-signal" role="alert">{error}</p>}
+            {feedback && <p className="mb-5 rounded-xl border border-mint/25 bg-mint/10 px-4 py-3 font-body text-sm text-mint" role="status">{feedback}</p>}
+            {error && (
+                <div className="mb-5 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 font-body text-sm text-danger" role="alert">
+                    {error}
+                    {!loading && <button type="button" onClick={loadInbox} className="btn-secondary ml-3 px-3 py-1.5 text-xs">Try again</button>}
+                </div>
+            )}
 
-                {loading ? (
-                    <div className="card-hard p-6 text-center font-mono text-xs uppercase tracking-widest text-ink-faint" role="status">Loading your inbox</div>
-                ) : announcements.length === 0 ? (
-                    <div className="card-hard p-6 text-center font-body text-sm text-ink-muted">Your inbox is clear. New announcements will appear here.</div>
-                ) : (
-                    <div className="space-y-4">
-                        {announcements.map((announcement) => {
-                            const tasks = extractedTasks[announcement.announcementId];
-                            const isBusy = busyId === announcement.announcementId;
-                            return (
-                                <article key={announcement.receiptId} className="card-hard p-4 sm:p-5">
-                                    <div className="mb-3 flex flex-wrap items-center gap-2">
+            {loading ? (
+                <div className="space-y-4" role="status" aria-label="Loading your inbox">
+                    <Skeleton className="h-56 w-full" />
+                    <Skeleton className="h-56 w-full" />
+                </div>
+            ) : announcements.length === 0 ? (
+                <EmptyState title="Your inbox is clear" body="New announcements will appear here." />
+            ) : (
+                <section className="space-y-4" aria-label="Announcements to review">
+                    {announcements.map((announcement) => {
+                        const tasks = extractedTasks[announcement.announcementId];
+                        const isBusy = busyId === announcement.announcementId;
+                        return (
+                            <Card
+                                key={announcement.receiptId}
+                                className="overflow-hidden"
+                                header={(
+                                    <div className="flex flex-wrap items-center gap-3">
                                         <span className="tag-pill-outline">{announcement.sourceType.replaceAll('_', ' ')}</span>
-                                        <time className="ml-auto font-mono text-xs text-ink-faint">{formatDate(announcement.createdAt)}</time>
+                                        <time className="ml-auto font-mono text-xs text-text-faint">{formatDate(announcement.createdAt)}</time>
                                     </div>
-                                    <p className="whitespace-pre-wrap break-words font-body text-sm text-ink">{announcement.rawText}</p>
-                                    {Array.isArray(tasks) && (
-                                        <div className="mt-5 border-t border-ink/10 pt-4">
-                                            <h2 className="mb-3 font-display text-lg font-semibold text-ink">Review extracted tasks</h2>
-                                            {tasks.length === 0 ? (
-                                                <p className="font-body text-sm text-ink-muted">No actionable tasks were found. You can dismiss this announcement.</p>
-                                            ) : (
-                                                <ul className="mb-4 space-y-3">
-                                                    {tasks.map((task, index) => (
-                                                        <li key={`${announcement.announcementId}-${index}`} className="border border-ink/10 p-3">
-                                                            <p className="font-body text-sm font-semibold text-ink">{task.title}</p>
-                                                            {task.description && <p className="mt-1 font-body text-sm text-ink-muted">{task.description}</p>}
-                                                            <p className="mt-2 font-mono text-xs text-ink-faint">
-                                                                {task.deadline ? `Due ${formatDate(task.deadline)}` : 'No deadline'}
-                                                                {' · '}{task.estimatedHours}h · {task.priority}
-                                                            </p>
-                                                        </li>
-                                                    ))}
-                                                </ul>
+                                )}
+                            >
+                                <article className="grid min-w-0 gap-5 p-4 sm:p-5 lg:grid-cols-2">
+                                    <div className="flex min-w-0 flex-col">
+                                        <p className="section-label mb-2">Announcement</p>
+                                        <p className="min-w-0 flex-1 whitespace-pre-wrap break-words font-body text-sm leading-relaxed text-text">
+                                            {announcement.rawText}
+                                        </p>
+                                        <div className="mt-5 flex flex-wrap gap-2">
+                                            {!Array.isArray(tasks) && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => extractTasks(announcement)}
+                                                    disabled={isBusy}
+                                                    className="btn-primary"
+                                                >
+                                                    {isBusy ? 'Extracting...' : 'Extract tasks'}
+                                                </button>
                                             )}
-                                            {tasks.length > 0 && (
-                                                <button type="button" onClick={() => confirmTasks(announcement.announcementId)} disabled={isBusy} className="btn-primary">
-                                                    {isBusy ? 'Saving...' : 'Confirm and add tasks'}
+                                            <button
+                                                type="button"
+                                                onClick={() => dismissAnnouncement(announcement.announcementId)}
+                                                disabled={isBusy}
+                                                className="btn-secondary"
+                                            >
+                                                {isBusy ? 'Please wait...' : 'Dismiss'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="min-w-0 rounded-xl border border-border bg-surface-2/60 p-4 sm:p-5">
+                                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                                            <div>
+                                                <p className="section-label mb-1">Review before adding</p>
+                                                <h2 className="font-display text-lg font-semibold text-text">
+                                                    Extracted tasks{Array.isArray(tasks) ? ` (${tasks.length})` : ''}
+                                                </h2>
+                                            </div>
+                                            {Array.isArray(tasks) && tasks.length > 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => confirmTasks(announcement.announcementId)}
+                                                    disabled={isBusy}
+                                                    className="btn-primary px-4 py-2 text-sm"
+                                                >
+                                                    {isBusy ? 'Adding...' : 'Add extracted tasks'}
                                                 </button>
                                             )}
                                         </div>
-                                    )}
-                                    <div className="mt-4 flex flex-wrap justify-end gap-3">
-                                        {!Array.isArray(tasks) && (
-                                            <button type="button" onClick={() => extractTasks(announcement)} disabled={isBusy} className="btn-secondary text-sm">
-                                                {isBusy ? 'Extracting...' : 'Extract tasks'}
-                                            </button>
+                                        {!Array.isArray(tasks) ? (
+                                            <p className="font-body text-sm leading-relaxed text-text-muted">
+                                                Extract actionable tasks from this announcement to review them here.
+                                            </p>
+                                        ) : tasks.length === 0 ? (
+                                            <p className="font-body text-sm leading-relaxed text-text-muted">
+                                                No actionable tasks were found. You can dismiss this announcement.
+                                            </p>
+                                        ) : (
+                                            <ul className="space-y-3">
+                                                {tasks.map((task, index) => (
+                                                    <li key={`${announcement.announcementId}-${index}`} className="min-w-0 rounded-lg border border-border bg-surface p-3">
+                                                        <p className="break-words font-body text-sm font-semibold text-text">{task.title}</p>
+                                                        {task.description && <p className="mt-1 break-words font-body text-sm text-text-muted">{task.description}</p>}
+                                                        <p className="mt-2 font-mono text-xs leading-relaxed text-text-faint">
+                                                            {task.deadline ? `Due ${formatDate(task.deadline)}` : 'No deadline'}
+                                                            {' · '}{task.estimatedHours}h · {task.priority}
+                                                        </p>
+                                                    </li>
+                                                ))}
+                                            </ul>
                                         )}
-                                        <button type="button" onClick={() => dismissAnnouncement(announcement.announcementId)} disabled={isBusy} className="btn-ghost text-sm">
-                                            Dismiss
-                                        </button>
                                     </div>
                                 </article>
-                            );
-                        })}
-                    </div>
-                )}
-                {!loading && error && (
-                    <div className="mt-4 text-center">
-                        <button type="button" onClick={loadInbox} className="btn-secondary text-sm">Try again</button>
-                    </div>
-                )}
-            </main>
+                            </Card>
+                        );
+                    })}
+                </section>
+            )}
         </div>
     );
 }

@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
+import Card from '../components/ui/Card.jsx';
+import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
+import ErrorState from '../components/ui/ErrorState.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
+import StatusBadge from '../components/ui/StatusBadge.jsx';
 
 const CATEGORIES = [
     { value: 'syllabus', label: 'Syllabus' },
@@ -19,8 +23,6 @@ const getErrorMessage = (error, fallback) => {
 };
 
 export default function Documents() {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
     const formRef = useRef(null);
     const [documents, setDocuments] = useState([]);
     const [title, setTitle] = useState('');
@@ -33,6 +35,7 @@ export default function Documents() {
     const [feedback, setFeedback] = useState('');
     const [isUploading, setIsUploading] = useState(false);
     const [deletingId, setDeletingId] = useState('');
+    const [confirmingDocument, setConfirmingDocument] = useState(null);
 
     const loadDocuments = useCallback(async () => {
         setIsLoading(true);
@@ -99,7 +102,6 @@ export default function Documents() {
     };
 
     const handleDelete = async (document) => {
-        if (!window.confirm(`Delete "${document.title}" and all of its indexed content?`)) return;
         setDeletingId(document.id || document._id);
         setActionError('');
         setFeedback('');
@@ -107,6 +109,7 @@ export default function Documents() {
             await api.delete(`/documents/${document.id || document._id}`);
             setDocuments((current) => current.filter((item) => (item.id || item._id) !== (document.id || document._id)));
             setFeedback('Document and its indexed content deleted.');
+            setConfirmingDocument(null);
         } catch (error) {
             setActionError(getErrorMessage(error, 'Could not delete this document. Please try again.'));
         } finally {
@@ -114,31 +117,12 @@ export default function Documents() {
         }
     };
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
-    };
-
     return (
-        <div className="min-h-screen bg-paper">
-            <nav className="border-b border-ink/10 px-4 sm:px-6 lg:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                    <Link to={user?.role === 'admin' ? '/admin' : '/mentor'} className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</Link>
-                    <span className="font-mono text-xs text-ink-faint border-l border-ink/15 pl-3">Documents</span>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
-                    <span className="hidden sm:block font-body text-sm text-ink-muted">{user?.name}</span>
-                    <Link to={user?.role === 'admin' ? '/admin' : '/mentor'} className="btn-ghost text-sm">Dashboard</Link>
-                    <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
-                </div>
-            </nav>
-
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
-                <header className="mb-8">
-                    <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Knowledge library</p>
-                    <h1 className="font-display text-4xl sm:text-5xl font-bold text-ink">Documents</h1>
-                    <p className="font-body text-ink-muted mt-2">Upload reference materials for the assistant to use.</p>
-                </header>
+        <div className="mx-auto w-full max-w-5xl">
+                <PageHeader
+                    title="Documents"
+                    subtitle="Upload reference materials for the assistant to use."
+                />
 
                 {feedback && (
                     <div className="mb-6 px-4 py-3 bg-forest/10 border border-forest/30 text-forest font-body text-sm" role="status">
@@ -151,7 +135,8 @@ export default function Documents() {
                     </div>
                 )}
 
-                <form ref={formRef} onSubmit={handleUpload} className="card-hard p-4 sm:p-6 mb-8 space-y-4">
+                <Card className="mb-8 p-4 sm:p-6">
+                <form ref={formRef} onSubmit={handleUpload} className="space-y-4">
                     <h2 className="font-display text-xl font-semibold text-ink">Upload a document</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -214,6 +199,7 @@ export default function Documents() {
                         </div>
                     )}
                 </form>
+                </Card>
 
                 <section aria-labelledby="documents-list-heading">
                     <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
@@ -227,59 +213,123 @@ export default function Documents() {
                     </div>
 
                     {isLoading ? (
-                        <div className="card-hard p-8 flex items-center justify-center gap-3" role="status">
-                            <div className="w-5 h-5 border-2 border-ink/20 border-t-signal rounded-full animate-spin" />
-                            <span className="font-mono text-xs text-ink-faint tracking-widest uppercase">Loading documents</span>
+                        <div role="status" aria-label="Loading documents">
+                            <Card className="space-y-4 p-6">
+                                <Skeleton className="h-5 w-48" />
+                                <Skeleton className="h-4 w-2/3" />
+                            </Card>
                         </div>
                     ) : loadError ? (
-                        <div className="card-hard p-6 text-center" role="alert">
-                            <p className="font-body text-sm text-signal mb-3">{loadError}</p>
-                            <button type="button" onClick={loadDocuments} className="btn-secondary text-sm">Try again</button>
-                        </div>
+                        <ErrorState message={loadError} onRetry={loadDocuments} />
                     ) : documents.length === 0 ? (
-                        <div className="card-hard p-6 text-center">
+                        <Card className="p-6 text-center">
                             <p className="font-display text-lg font-semibold text-ink">No documents yet</p>
                             <p className="font-body text-sm text-ink-muted mt-1">Upload a PDF or TXT file to add it to the assistant’s library.</p>
-                        </div>
+                        </Card>
                     ) : (
-                        <div className="space-y-3">
-                            {documents.map((document) => {
-                                const id = document.id || document._id;
-                                const categoryLabel = CATEGORIES.find((item) => item.value === document.category)?.label || document.category;
-                                const isMentorOnly = document.accessLevel === 'mentor_only';
-                                return (
-                                    <article key={id} className="card-hard p-4 sm:p-5">
-                                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                                            <div className="min-w-0 flex-1">
-                                                <h3 className="font-display text-lg font-semibold text-ink break-words">{document.title}</h3>
-                                                <div className="flex flex-wrap gap-2 mt-2">
-                                                    <span className="tag-pill-outline">{categoryLabel}</span>
-                                                    <span className={isMentorOnly ? 'tag-pill bg-forest' : 'tag-pill'}>
-                                                        {isMentorOnly ? 'Mentors only' : 'All students'}
-                                                    </span>
-                                                    <span className="tag-pill-outline">{document.chunkCount ?? 0} chunks</span>
+                        <>
+                            <div className="hidden overflow-hidden rounded-xl border border-border bg-surface md:block">
+                                <table className="w-full table-fixed text-left">
+                                    <caption className="sr-only">Uploaded documents available to the assistant</caption>
+                                    <thead className="border-b border-border bg-surface-2">
+                                        <tr className="font-mono text-[10px] uppercase tracking-wider text-text-faint">
+                                            <th scope="col" className="px-4 py-3">Document</th>
+                                            <th scope="col" className="w-36 px-4 py-3">Access</th>
+                                            <th scope="col" className="w-40 px-4 py-3">Indexed content</th>
+                                            <th scope="col" className="w-24 px-4 py-3 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-border">
+                                        {documents.map((document) => {
+                                            const id = document.id || document._id;
+                                            const categoryLabel = CATEGORIES.find((item) => item.value === document.category)?.label || document.category;
+                                            const isMentorOnly = document.accessLevel === 'mentor_only';
+                                            return (
+                                                <tr key={id} className="align-top">
+                                                    <td className="min-w-0 px-4 py-4">
+                                                        <p className="break-words font-display font-semibold text-text">{document.title}</p>
+                                                        <div className="mt-2 flex flex-wrap items-center gap-2">
+                                                            <StatusBadge tone="neutral" label={categoryLabel} />
+                                                            <span className="font-mono text-[10px] text-text-faint">
+                                                                {document.pageCount ?? 0} {document.pageCount === 1 ? 'page' : 'pages'}
+                                                                {document.createdAt && ` · Added ${new Date(document.createdAt).toLocaleDateString()}`}
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-4 py-4">
+                                                        <StatusBadge tone={isMentorOnly ? 'accent' : 'success'} label={isMentorOnly ? 'Mentors only' : 'All students'} />
+                                                    </td>
+                                                    <td className="px-4 py-4 font-mono text-xs text-text-muted">
+                                                        {document.chunkCount ?? 0} chunks
+                                                    </td>
+                                                    <td className="px-4 py-4 text-right">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setConfirmingDocument(document)}
+                                                            disabled={deletingId === id}
+                                                            className="btn-secondary px-3 py-2 text-sm"
+                                                        >
+                                                            {deletingId === id ? 'Deleting…' : 'Delete'}
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="space-y-3 md:hidden">
+                                {documents.map((document) => {
+                                    const id = document.id || document._id;
+                                    const categoryLabel = CATEGORIES.find((item) => item.value === document.category)?.label || document.category;
+                                    const isMentorOnly = document.accessLevel === 'mentor_only';
+                                    return (
+                                        <article key={id} className="card-hard min-w-0 p-4">
+                                            <div className="flex flex-col gap-4">
+                                                <div className="min-w-0">
+                                                    <h3 className="break-words font-display text-lg font-semibold text-text">{document.title}</h3>
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                        <StatusBadge tone="neutral" label={categoryLabel} />
+                                                        <StatusBadge tone={isMentorOnly ? 'accent' : 'success'} label={isMentorOnly ? 'Mentors only' : 'All students'} />
+                                                        <StatusBadge tone="neutral" label={`${document.chunkCount ?? 0} chunks`} />
+                                                    </div>
+                                                    <p className="mt-3 font-mono text-xs text-text-faint">
+                                                        {document.pageCount ?? 0} {document.pageCount === 1 ? 'page' : 'pages'}
+                                                        {document.createdAt && ` · Added ${new Date(document.createdAt).toLocaleDateString()}`}
+                                                    </p>
                                                 </div>
-                                                <p className="font-mono text-xs text-ink-faint mt-3">
-                                                    {document.pageCount ?? 0} {document.pageCount === 1 ? 'page' : 'pages'}
-                                                    {document.createdAt && ` · Added ${new Date(document.createdAt).toLocaleDateString()}`}
-                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setConfirmingDocument(document)}
+                                                    disabled={deletingId === id}
+                                                    className="btn-secondary w-full text-sm"
+                                                >
+                                                    {deletingId === id ? 'Deleting…' : 'Delete'}
+                                                </button>
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleDelete(document)}
-                                                disabled={deletingId === id}
-                                                className="btn-secondary w-full sm:w-auto text-sm"
-                                            >
-                                                {deletingId === id ? 'Deleting...' : 'Delete'}
-                                            </button>
-                                        </div>
-                                    </article>
-                                );
-                            })}
-                        </div>
+                                        </article>
+                                    );
+                                })}
+                            </div>
+                        </>
                     )}
                 </section>
-            </main>
+                <ConfirmDialog
+                    open={!!confirmingDocument}
+                    title="Delete document?"
+                    body={confirmingDocument
+                        ? `Delete "${confirmingDocument.title}" and all of its indexed content?`
+                        : ''}
+                    confirmLabel="Delete document"
+                    onConfirm={() => {
+                        if (!confirmingDocument) return;
+                        const documentToDelete = confirmingDocument;
+                        setConfirmingDocument(null);
+                        handleDelete(documentToDelete);
+                    }}
+                    onCancel={() => setConfirmingDocument(null)}
+                    variant="danger"
+                />
         </div>
     );
 }

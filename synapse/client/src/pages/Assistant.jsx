@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
+import Card from '../components/ui/Card.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
 
 const SUGGESTED_QUESTIONS = [
     'What is the attendance requirement?',
@@ -16,8 +16,6 @@ const requestErrorMessage = (error) => {
 };
 
 export default function Assistant() {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
     const [messages, setMessages] = useState([]);
     const [question, setQuestion] = useState('');
     const [isAsking, setIsAsking] = useState(false);
@@ -55,34 +53,15 @@ export default function Assistant() {
         askQuestion(question);
     };
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
-    };
-
     return (
-        <div className="min-h-screen bg-paper">
-            <nav className="border-b border-ink/10 px-4 sm:px-6 lg:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                    <Link to="/student" className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</Link>
-                    <span className="font-mono text-xs text-ink-faint border-l border-ink/15 pl-3">Assistant</span>
-                </div>
-                <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
-                    <span className="hidden sm:block font-body text-sm text-ink-muted">{user?.name}</span>
-                    <Link to="/student" className="btn-ghost text-sm">Dashboard</Link>
-                    <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
-                </div>
-            </nav>
+        <div className="mx-auto w-full max-w-4xl">
+                <PageHeader
+                    title="AI Assistant"
+                    subtitle="Answers from your uploaded documents, with sources."
+                />
 
-            <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
-                <header className="mb-6 sm:mb-8">
-                    <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Grounded in your documents</p>
-                    <h1 className="font-display text-4xl sm:text-5xl font-bold text-ink">Ask the assistant</h1>
-                    <p className="font-body text-ink-muted mt-2">Get answers from uploaded course and campus documents.</p>
-                </header>
-
-                <section className="card-hard overflow-hidden" aria-label="Assistant conversation">
-                    <div className="min-h-72 max-h-[60vh] overflow-y-auto p-4 sm:p-6 space-y-5" aria-live="polite">
+                <section className="card-hard flex h-[min(68vh,760px)] min-h-[30rem] flex-col overflow-hidden" aria-label="Assistant conversation">
+                    <div className="min-h-0 flex-1 space-y-5 overflow-y-auto p-4 sm:p-6" aria-live="polite">
                         {messages.length === 0 && !isAsking ? (
                             <div className="py-5 sm:py-8">
                                 <div className="max-w-lg mx-auto text-center mb-7">
@@ -91,19 +70,6 @@ export default function Assistant() {
                                         Answers are based on uploaded documents. If they don’t contain the answer, I’ll let you know.
                                     </p>
                                 </div>
-                                <div className="flex flex-wrap justify-center gap-2">
-                                    {SUGGESTED_QUESTIONS.map((suggestion) => (
-                                        <button
-                                            key={suggestion}
-                                            type="button"
-                                            onClick={() => askQuestion(suggestion)}
-                                            disabled={isAsking}
-                                            className="tag-pill-outline text-left whitespace-normal hover:border-ink hover:text-ink disabled:opacity-50"
-                                        >
-                                            {suggestion}
-                                        </button>
-                                    ))}
-                                </div>
                             </div>
                         ) : messages.length === 0 ? (
                             <div className="py-10 text-center" role="status">
@@ -111,43 +77,44 @@ export default function Assistant() {
                             </div>
                         ) : (
                             messages.map((message, index) => (
-                                <article
-                                    key={`${message.role}-${index}`}
-                                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                                >
-                                    <div className={`min-w-0 max-w-[90%] sm:max-w-[80%] ${message.role === 'user'
-                                        ? 'bg-ink text-paper px-4 py-3'
-                                        : 'bg-white/60 border border-ink/10 px-4 py-3'}`}
-                                    >
-                                        <p className="font-mono text-[10px] tracking-widest uppercase opacity-60 mb-1">
-                                            {message.role === 'user' ? 'You' : 'Assistant'}
-                                        </p>
-                                        <p className="font-body text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                                        {message.role === 'assistant' && message.sources?.length > 0 && (
-                                            <details className="mt-4 border-t border-ink/10 pt-3">
-                                                <summary className="font-mono text-xs text-ink-muted cursor-pointer hover:text-ink">
+                                <div key={`${message.role}-${index}`} className="space-y-2">
+                                    <article className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`min-w-0 max-w-[90%] sm:max-w-[80%] ${message.role === 'user'
+                                            ? 'rounded-2xl rounded-br-sm border border-accent/20 bg-accent-soft px-4 py-3 text-text'
+                                            : 'rounded-2xl rounded-bl-sm border border-border bg-surface px-4 py-3 text-text'}`}
+                                        >
+                                            <p className="mb-1 font-mono text-[10px] tracking-widest uppercase opacity-60">
+                                                {message.role === 'user' ? 'You' : 'Assistant'}
+                                            </p>
+                                            <p className="whitespace-pre-wrap break-words font-body text-sm">{message.content}</p>
+                                        </div>
+                                    </article>
+                                    {message.role === 'assistant' && message.sources?.length > 0 && (
+                                        <Card className="ml-0 w-full max-w-[90%] p-3 sm:ml-0 sm:max-w-[80%]">
+                                            <details>
+                                                <summary className="cursor-pointer font-mono text-xs text-text-muted hover:text-text">
                                                     Sources ({message.sources.length})
                                                 </summary>
-                                                <ul className="mt-3 space-y-3">
+                                                <ul className="mt-3 space-y-3 border-t border-border pt-3">
                                                     {message.sources.map((source, sourceIndex) => (
                                                         <li key={`${source.documentTitle}-${source.page}-${sourceIndex}`} className="text-xs">
-                                                            <p className="font-body font-semibold text-ink break-words">
+                                                            <p className="break-words font-body font-semibold text-text">
                                                                 {source.documentTitle}
-                                                                {source.page != null && <span className="font-normal text-ink-muted"> · Page {source.page}</span>}
+                                                                {source.page != null && <span className="font-normal text-text-muted"> · Page {source.page}</span>}
                                                             </p>
-                                                            <p className="font-body text-ink-muted mt-1 break-words">{source.snippet}</p>
+                                                            <p className="mt-1 break-words font-body text-text-muted">{source.snippet}</p>
                                                         </li>
                                                     ))}
                                                 </ul>
                                             </details>
-                                        )}
-                                    </div>
-                                </article>
+                                        </Card>
+                                    )}
+                                </div>
                             ))
                         )}
                         {isAsking && (
                             <div className="flex justify-start" role="status" aria-label="Assistant is typing">
-                                <div className="border border-ink/10 bg-white/60 px-4 py-3">
+                                <div className="rounded-2xl rounded-bl-sm border border-border bg-surface px-4 py-3">
                                     <p className="font-mono text-[10px] tracking-widest uppercase text-ink-faint mb-2">Assistant</p>
                                     <div className="flex gap-1.5">
                                         <span className="w-2 h-2 rounded-full bg-ink/40 animate-pulse" />
@@ -159,12 +126,25 @@ export default function Assistant() {
                         )}
                     </div>
 
-                    <div className="border-t border-ink/10 p-4 sm:p-5">
+                    <div className="shrink-0 border-t border-border bg-bg-elevated p-4 sm:p-5">
                         {error && (
-                            <div className="mb-3 px-3 py-2 border border-signal/30 bg-signal/10 text-signal font-body text-sm" role="alert">
+                            <div className="mb-3 rounded-lg border border-danger/25 bg-danger/10 px-3 py-2 font-body text-sm text-danger" role="alert">
                                 {error}
                             </div>
                         )}
+                        <div className="mb-3 flex flex-wrap gap-2" aria-label="Suggested questions">
+                            {SUGGESTED_QUESTIONS.map((suggestion) => (
+                                <button
+                                    key={suggestion}
+                                    type="button"
+                                    onClick={() => askQuestion(suggestion)}
+                                    disabled={isAsking}
+                                    className="tag-pill-outline whitespace-normal text-left hover:border-accent hover:text-accent disabled:opacity-50"
+                                >
+                                    {suggestion}
+                                </button>
+                            ))}
+                        </div>
                         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
                             <div className="min-w-0 flex-1">
                                 <label htmlFor="assistant-question" className="sr-only">Your question</label>
@@ -189,7 +169,6 @@ export default function Assistant() {
                         </form>
                     </div>
                 </section>
-            </main>
         </div>
     );
 }

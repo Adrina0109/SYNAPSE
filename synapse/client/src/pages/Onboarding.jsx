@@ -203,7 +203,7 @@ export default function Onboarding() {
                                         <button
                                             type="button"
                                             onClick={() => removeSkill(skill)}
-                                            className="text-paper/60 hover:text-paper ml-1 leading-none"
+                                            className="ml-1 leading-none text-accent/70 hover:text-accent"
                                             aria-label={`Remove ${skill}`}
                                         >
                                             ×
@@ -380,7 +380,7 @@ export default function Onboarding() {
                     >
                         {isLoading ? (
                             <>
-                                <div className="w-4 h-4 border-2 border-paper/30 border-t-paper rounded-full animate-spin" />
+                                <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent-foreground/30 border-t-accent-foreground" />
                                 Setting up your path…
                             </>
                         ) : (

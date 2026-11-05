@@ -1,8 +1,8 @@
 export const LOAD_META = {
-    light: { label: 'Light', cellClass: 'bg-paper-dark text-ink' },
-    normal: { label: 'Normal', cellClass: 'bg-olive-light text-paper' },
-    heavy: { label: 'Heavy', cellClass: 'bg-amber-300 text-ink' },
-    overloaded: { label: 'Overloaded', cellClass: 'bg-signal text-paper' },
+    light: { label: 'Light', cellClass: 'bg-surface text-text' },
+    normal: { label: 'Normal', cellClass: 'bg-blue/10 text-blue' },
+    heavy: { label: 'Heavy', cellClass: 'bg-warning/10 text-warning' },
+    overloaded: { label: 'Overloaded', cellClass: 'bg-danger/10 text-danger' },
 };
 
 export const SEVERITY_LABEL = {

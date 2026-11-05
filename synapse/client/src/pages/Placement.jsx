@@ -1,33 +1,21 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 import BreakdownBars from '../components/placement/BreakdownBars.jsx';
 import NextBestAction from '../components/placement/NextBestAction.jsx';
-import ScoreGauge from '../components/placement/ScoreGauge.jsx';
 import ScoreHistory from '../components/placement/ScoreHistory.jsx';
 import InterviewChecklist from '../components/placement/InterviewChecklist.jsx';
 import MockSessions from '../components/placement/MockSessions.jsx';
 import ResumeGap from '../components/placement/ResumeGap.jsx';
 import DriveList from '../components/placement/DriveList.jsx';
 import ShareCard from '../components/placement/ShareCard.jsx';
-
-const PageNav = ({ user, onSignOut }) => (
-    <nav className="border-b border-ink/10 px-4 py-4 flex flex-wrap items-center justify-between gap-3 sm:px-6 lg:px-10">
-        <div className="flex min-w-0 items-center gap-3">
-            <Link to="/student" className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</Link>
-            <span className="font-mono text-xs text-ink-faint border-l border-ink/15 pl-3">Placement</span>
-        </div>
-        <div className="flex items-center gap-1 sm:gap-3">
-            <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
-            <Link to="/student" className="btn-ghost text-sm">Dashboard</Link>
-            <button type="button" onClick={onSignOut} className="btn-ghost text-sm">Sign out</button>
-        </div>
-    </nav>
-);
+import Card from '../components/ui/Card.jsx';
+import ErrorState from '../components/ui/ErrorState.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
+import Ring from '../components/ui/Ring.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
 
 export default function Placement() {
-    const { user, logout } = useAuth();
     const navigate = useNavigate();
     const [readiness, setReadiness] = useState(null);
     const [history, setHistory] = useState(null);
@@ -105,11 +93,6 @@ export default function Placement() {
         };
     }, [selectedRoadmapId]);
 
-    const handleSignOut = async () => {
-        await logout();
-        navigate('/');
-    };
-
     const handleResumeRoadmapPreview = async (missingSkills) => {
         const { data } = await api.post('/placement/resume-gap/to-roadmap', { missingSkills });
         navigate('/roadmaps', {
@@ -143,43 +126,36 @@ export default function Placement() {
     );
 
     return (
-        <div className="min-h-screen bg-paper">
-            <PageNav user={user} onSignOut={handleSignOut} />
-            <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
-                <header className="mb-7 sm:mb-8">
-                    <p className="mb-2 font-mono text-xs tracking-widest uppercase text-signal">Your placement path</p>
-                    <h1 className="font-display text-4xl font-bold text-ink sm:text-5xl">Placement readiness</h1>
-                    <p className="mt-2 font-body text-ink-muted">See your progress and find the next step toward your target role.</p>
-                </header>
+        <div className="mx-auto w-full max-w-6xl">
+                <PageHeader
+                    title="Placement readiness"
+                    subtitle="See your progress and find the next step toward your target role."
+                />
 
                 {loadError && (
-                    <div className="card-hard mb-6 p-5 text-center" role="alert">
-                        <p className="mb-3 font-body text-sm text-signal">{loadError}</p>
-                        <button type="button" onClick={reload} className="btn-secondary text-sm">Try again</button>
-                    </div>
+                    <div className="mb-6"><ErrorState message={loadError} onRetry={reload} /></div>
                 )}
                 {isLoading && !readiness && (
-                    <div className="card-hard flex items-center justify-center gap-3 p-8" role="status">
-                        <div className="h-5 w-5 border-2 border-ink/20 border-t-signal rounded-full animate-spin" />
-                        <span className="font-mono text-xs tracking-widest uppercase text-ink-faint">Loading readiness</span>
+                    <div role="status" aria-label="Loading placement readiness">
+                        <Card className="space-y-4 p-6">
+                            <Skeleton className="h-6 w-48" />
+                            <Skeleton className="h-40 w-full" />
+                        </Card>
                     </div>
                 )}
                 {!loadError && readiness && history && (
-                    <div className="space-y-6">
-                        <section className="grid min-w-0 gap-6 lg:grid-cols-[minmax(240px,0.8fr)_minmax(0,1.5fr)]" aria-label="Readiness score details">
-                            <div className="card-hard flex min-w-0 flex-col items-center justify-center p-5 sm:p-8">
-                                <p className="section-label mb-4">Current score</p>
-                                <ScoreGauge score={readiness.score} />
-                            </div>
-                            <BreakdownBars breakdown={readiness.breakdown} />
-                        </section>
+                    <div className="grid min-w-0 gap-5 lg:grid-cols-2">
+                        <Card
+                            className="flex min-w-0 flex-col items-center justify-center gap-4 p-5 sm:p-8"
+                            header={<p className="section-label">Current score</p>}
+                        >
+                            <Ring value={readiness.score} label="Readiness" size={192} strokeWidth={7} />
+                        </Card>
+                        <BreakdownBars breakdown={readiness.breakdown} />
+                        <NextBestAction action={readiness.nextBestAction} />
+                        <ScoreHistory history={history} />
 
-                        <section className="grid min-w-0 gap-6 md:grid-cols-2" aria-label="Readiness recommendations and history">
-                            <NextBestAction action={readiness.nextBestAction} />
-                            <ScoreHistory history={history} />
-                        </section>
-
-                        <section className="card-hard min-w-0 space-y-4 p-4 sm:p-6" aria-labelledby="what-if-heading">
+                        <Card className="min-w-0 space-y-4 p-4 sm:p-6">
                             <div>
                                 <p className="section-label mb-2">Projection</p>
                                 <h2 id="what-if-heading" className="font-display text-2xl font-semibold text-ink">What-if</h2>
@@ -223,26 +199,25 @@ export default function Placement() {
                                     )}
                                 </>
                             )}
-                        </section>
+                        </Card>
 
                         {checklist && (
-                            <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+                            <>
                                 <InterviewChecklist checklist={checklist} onToggled={handleChecklistToggled} />
                                 <MockSessions sessions={checklist.mockSessions || []} />
-                            </div>
+                            </>
                         )}
                         <ResumeGap onRoadmapPreview={handleResumeRoadmapPreview} />
-                        <section className="space-y-4" aria-labelledby="placement-drives-heading">
+                        <Card className="min-w-0 space-y-4 p-4 sm:p-6" aria-labelledby="placement-drives-heading">
                             <div>
                                 <p className="section-label mb-2">Opportunities</p>
                                 <h2 id="placement-drives-heading" className="font-display text-2xl font-semibold text-ink">Placement drives</h2>
                             </div>
                             <DriveList drives={drives} />
-                        </section>
+                        </Card>
                         <ShareCard />
                     </div>
                 )}
-            </main>
         </div>
     );
 }

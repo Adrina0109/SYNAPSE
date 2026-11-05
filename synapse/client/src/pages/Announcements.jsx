@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import Navbar from '../components/Navbar.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
+import PageHeader from '../components/ui/PageHeader.jsx';
 import RecipientSelector from '../components/RecipientSelector.jsx';
 
 const SOURCES = [
@@ -125,6 +125,13 @@ export default function Announcements() {
 
     return (
         <div className="min-h-screen bg-paper">
+            <div className="mx-auto w-full max-w-5xl">
+                <PageHeader
+                    title="Announcements"
+                    subtitle={isAdmin
+                        ? 'Send to all students or to a mentor’s assigned students.'
+                        : 'Announcements are delivered only to your assigned students.'}
+                />
             <Navbar />
             <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
                 <header className="mb-8">
@@ -222,7 +229,7 @@ export default function Announcements() {
                         </div>
                     )}
                 </section>
-            </main>
+            </div>
         </div>
     );
 }

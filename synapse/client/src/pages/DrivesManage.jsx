@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 import DriveForm from '../components/placement/DriveForm.jsx';
 import { formatDayKey } from '../components/planner/plannerHelpers.js';
+import Card from '../components/ui/Card.jsx';
+import ConfirmDialog from '../components/ui/ConfirmDialog.jsx';
+import ErrorState from '../components/ui/ErrorState.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
+import StatusBadge from '../components/ui/StatusBadge.jsx';
 
 const istDayKey = (date) => new Date(date).toLocaleDateString('en-CA', {
     timeZone: 'Asia/Kolkata',
@@ -14,8 +18,6 @@ const creatorName = (creator) => (
 );
 
 export default function DrivesManage() {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
     const [drives, setDrives] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
@@ -72,35 +74,14 @@ export default function DrivesManage() {
         }
     };
 
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
-    };
-
-    const dashboardPath = user?.role === 'admin' ? '/admin' : '/mentor';
     const showForm = isCreating || editingDrive;
 
     return (
-        <div className="min-h-screen bg-paper">
-            <nav className="flex flex-wrap items-center justify-between gap-3 border-b border-ink/10 px-4 py-4 sm:px-6 lg:px-10">
-                <div className="flex min-w-0 items-center gap-3">
-                    <Link to={dashboardPath} className="font-display text-lg font-bold tracking-tight text-ink">SYNAPSE</Link>
-                    <span className="border-l border-ink/15 pl-3 font-mono text-xs text-ink-faint">Placement drives</span>
-                </div>
-                <div className="flex items-center gap-2 sm:gap-4">
-                    <span className="hidden font-body text-sm text-ink-muted md:block">{user?.name}</span>
-                    <Link to={dashboardPath} className="btn-ghost text-sm">Dashboard</Link>
-                    <button type="button" onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
-                </div>
-            </nav>
-
-            <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
-                <header className="mb-7 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
-                    <div>
-                        <p className="mb-2 font-mono text-xs tracking-widest uppercase text-signal">Manage opportunities</p>
-                        <h1 className="font-display text-4xl font-bold text-ink sm:text-5xl">Placement drives</h1>
-                    </div>
-                    {!showForm && (
+        <div className="mx-auto w-full max-w-5xl">
+                <PageHeader
+                    title="Placement drives"
+                    subtitle="Manage upcoming opportunities for students."
+                    actions={!showForm && (
                         <button
                             type="button"
                             onClick={() => { setActionError(''); setIsCreating(true); }}
@@ -109,7 +90,7 @@ export default function DrivesManage() {
                             New drive
                         </button>
                     )}
-                </header>
+                />
 
                 {actionError && (
                     <div className="mb-6 border border-signal/30 bg-signal/10 px-4 py-3 font-body text-sm text-signal" role="alert">
@@ -118,7 +99,7 @@ export default function DrivesManage() {
                 )}
 
                 {showForm && (
-                    <section className="card-hard mb-8 space-y-5 p-4 sm:p-6" aria-labelledby="drive-form-heading">
+                    <Card className="mb-8 space-y-5 p-4 sm:p-6">
                         <div>
                             <p className="section-label mb-1">{editingDrive ? 'Update opportunity' : 'Add opportunity'}</p>
                             <h2 id="drive-form-heading" className="font-display text-2xl font-semibold text-ink">
@@ -131,38 +112,35 @@ export default function DrivesManage() {
                             isSubmitting={isSubmitting}
                             onCancel={() => { setEditingDrive(null); setIsCreating(false); }}
                         />
-                    </section>
+                    </Card>
                 )}
 
                 {loadError && (
-                    <div className="card-hard p-5 text-center" role="alert">
-                        <p className="mb-3 font-body text-sm text-signal">{loadError}</p>
-                        <button type="button" onClick={loadDrives} className="btn-secondary text-sm">Try again</button>
-                    </div>
+                    <ErrorState message={loadError} onRetry={loadDrives} />
                 )}
                 {isLoading && (
-                    <div className="card-hard flex items-center justify-center gap-3 p-8" role="status">
-                        <div className="h-5 w-5 animate-spin rounded-full border-2 border-ink/20 border-t-signal" />
-                        <span className="font-mono text-xs tracking-widest uppercase text-ink-faint">Loading drives</span>
+                    <div role="status" aria-label="Loading placement drives">
+                        <Card className="space-y-4 p-6">
+                            <Skeleton className="h-5 w-48" />
+                            <Skeleton className="h-4 w-2/3" />
+                        </Card>
                     </div>
                 )}
                 {!isLoading && !loadError && drives.length === 0 && (
-                    <div className="card-hard p-6 text-center">
+                    <Card className="p-6 text-center">
                         <p className="font-body text-sm text-ink-muted">No placement drives yet.</p>
-                    </div>
+                    </Card>
                 )}
                 {!isLoading && !loadError && drives.length > 0 && (
-                    <div className="grid min-w-0 gap-4 md:grid-cols-2">
+                    <div className="grid min-w-0 gap-3 md:block md:rounded-xl md:border md:border-border md:bg-surface">
                         {drives.map((drive) => (
-                            <article key={drive._id} className="card-hard min-w-0 space-y-3 p-4 sm:p-5">
+                            <article key={drive._id} className="card-hard min-w-0 space-y-3 p-4 sm:p-5 md:rounded-none md:border-x-0 md:border-t-0 md:border-b md:border-b-border md:bg-transparent md:shadow-none md:last:border-b-0">
                                 <div className="flex flex-wrap items-start justify-between gap-2">
                                     <div className="min-w-0">
                                         <h2 className="break-words font-display text-xl font-semibold text-ink">{drive.company}</h2>
                                         <p className="mt-1 break-words font-body text-sm text-ink-muted">{drive.role}</p>
                                     </div>
-                                    <span className={`tag-pill ${drive.status === 'open' ? 'bg-forest text-paper' : 'bg-ink/10 text-ink-muted'}`}>
-                                        {drive.status}
-                                    </span>
+                                    <StatusBadge tone={drive.status === 'open' ? 'success' : 'neutral'} label={drive.status} />
                                 </div>
                                 <p className="font-mono text-xs text-ink-faint">
                                     {formatDayKey(istDayKey(drive.date))} · Created by {creatorName(drive.createdBy)}
@@ -171,36 +149,34 @@ export default function DrivesManage() {
                                     Min CGPA {drive.minCgpa} · Backlogs up to {drive.maxBacklogs ?? 'any'} · {drive.branches?.length ? drive.branches.join(', ') : 'All branches'}
                                 </p>
                                 <div className="flex flex-wrap justify-end gap-2 border-t border-ink/10 pt-3">
-                                    {confirmingDelete === drive._id ? (
-                                        <>
-                                            <span className="mr-auto self-center font-body text-sm text-ink-muted">Delete this drive?</span>
-                                            <button type="button" onClick={() => setConfirmingDelete('')} className="btn-ghost text-sm">Cancel</button>
-                                            <button type="button" onClick={() => deleteDrive(drive._id)} className="btn-primary px-4 py-2 text-sm">Confirm delete</button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <button
-                                                type="button"
-                                                onClick={() => { setActionError(''); setIsCreating(false); setEditingDrive(drive); }}
-                                                className="btn-secondary px-4 py-2 text-sm"
-                                            >
-                                                Edit
-                                            </button>
-                                            <button
-                                                type="button"
-                                                onClick={() => { setActionError(''); setConfirmingDelete(drive._id); }}
-                                                className="btn-ghost text-sm text-signal"
-                                            >
-                                                Delete
-                                            </button>
-                                        </>
-                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => { setActionError(''); setIsCreating(false); setEditingDrive(drive); }}
+                                        className="btn-secondary px-4 py-2 text-sm"
+                                    >
+                                        Edit
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => { setActionError(''); setConfirmingDelete(drive._id); }}
+                                        className="btn-ghost text-sm text-danger"
+                                    >
+                                        Delete
+                                    </button>
                                 </div>
+                                <ConfirmDialog
+                                    open={confirmingDelete === drive._id}
+                                    title="Delete placement drive?"
+                                    body={`Delete the ${drive.company} ${drive.role} drive?`}
+                                    confirmLabel="Delete drive"
+                                    onConfirm={() => deleteDrive(drive._id)}
+                                    onCancel={() => setConfirmingDelete('')}
+                                    variant="danger"
+                                />
                             </article>
                         ))}
                     </div>
                 )}
-            </main>
         </div>
     );
 }

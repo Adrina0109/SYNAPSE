@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from '../lib/api.js';
 import TaskForm from '../components/tasks/TaskForm.jsx';
 import TaskItem from '../components/tasks/TaskItem.jsx';
 import { labelizeTaskValue } from '../components/tasks/taskHelpers.js';
 import ConflictBanner from '../components/planner/ConflictBanner.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
+import ErrorState from '../components/ui/ErrorState.jsx';
+import EmptyState from '../components/ui/EmptyState.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
 import { useTaskStats } from '../context/TaskStatsContext.jsx';
 
 const CATEGORIES = ['assessment', 'assignment', 'placement', 'event', 'personal'];
 const STATUSES = [
-    { value: '', label: 'All statuses' },
+    { value: '', label: 'All' },
     { value: 'pending', label: 'Pending' },
     { value: 'in_progress', label: 'In progress' },
     { value: 'completed', label: 'Completed' },
@@ -62,6 +65,12 @@ export default function Tasks() {
         () => tasks.filter((task) => task.status === 'completed').length,
         [tasks]
     );
+    const statusCounts = useMemo(() => ({
+        '': tasks.length,
+        pending: tasks.filter((task) => task.status === 'pending').length,
+        in_progress: tasks.filter((task) => task.status === 'in_progress').length,
+        completed: completedCount,
+    }), [completedCount, tasks]);
 
     const saveTask = async (payload) => {
         setIsSaving(true);
@@ -129,53 +138,34 @@ export default function Tasks() {
         setEditingTask(task);
         setActionError('');
         setFeedback('');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    const handleLogout = async () => {
-        await logout();
-        navigate('/');
+        const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+        window.scrollTo({ top: 0, behavior });
     };
 
     return (
-        <div className="min-h-screen bg-paper">
-            <nav className="border-b border-ink/10 px-4 sm:px-6 lg:px-10 py-4 flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0">
-                    <Link to="/student" className="font-display font-bold text-lg tracking-tight text-ink">SYNAPSE</Link>
-                    <span className="font-mono text-xs text-ink-faint border-l border-ink/15 pl-3">Tasks</span>
+        <div className="min-w-0">
+            <PageHeader
+                title="Tasks"
+                subtitle="Manage your academics, placements and personal work."
+                actions={<a href="#task-form-heading" className="btn-primary">Add task</a>}
+            />
+
+            {feedback && (
+                <div className="mb-5 rounded-xl border border-mint/25 bg-mint/10 px-4 py-3 font-body text-sm text-mint" role="status">
+                    {feedback}
                 </div>
-                <div className="flex items-center gap-2 sm:gap-4">
-                    <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
-                    <Link to="/student" className="btn-ghost text-sm">Dashboard</Link>
-                    <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
+            )}
+            {actionError && (
+                <div className="mb-5 rounded-xl border border-danger/25 bg-danger/10 px-4 py-3 font-body text-sm text-danger" role="alert">
+                    {actionError}
                 </div>
-            </nav>
+            )}
 
-            <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-8 sm:py-10">
-                <header className="mb-8">
-                    <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Your work</p>
-                    <h1 className="font-display text-4xl sm:text-5xl font-bold text-ink">Tasks</h1>
-                    <p className="font-body text-ink-muted mt-2">
-                        Keep track of what’s next. {completedCount} of {tasks.length} shown complete.
-                    </p>
-                </header>
-
-                {feedback && (
-                    <div className="mb-6 px-4 py-3 bg-forest/10 border border-forest/30 text-forest font-body text-sm" role="status">
-                        {feedback}
-                    </div>
-                )}
-                {actionError && (
-                    <div className="mb-6 px-4 py-3 bg-signal/10 border border-signal/30 text-signal font-body text-sm" role="alert">
-                        {actionError}
-                    </div>
-                )}
-
-                <section className="card-hard p-4 sm:p-6 mb-8" aria-labelledby="task-form-heading">
-                    <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
+            <section id="task-form-heading" className="card-hard mb-7 p-4 sm:p-6" aria-labelledby="task-form-title">
+                    <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
                         <div>
                             <p className="section-label mb-1">{editingTask ? 'Update your list' : 'Make a plan'}</p>
-                            <h2 id="task-form-heading" className="font-display text-xl font-semibold text-ink">
+                            <h2 id="task-form-title" className="font-display text-xl font-semibold text-text">
                                 {editingTask ? 'Edit task' : 'Add a task'}
                             </h2>
                         </div>
@@ -183,25 +173,47 @@ export default function Tasks() {
                             <button type="button" onClick={() => setEditingTask(null)} className="btn-ghost text-sm">Cancel edit</button>
                         )}
                     </div>
+                    <TaskForm task={editingTask} onSubmit={saveTask} isSaving={isSaving} />
+            </section>
                     <TaskForm task={editingTask} onSubmit={saveTask} onTaskChanged={notifyTasksChanged} isSaving={isSaving} />
                 </section>
 
-                <section aria-labelledby="task-list-heading">
-                    <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-4">
+            <section aria-labelledby="task-list-heading">
+                    <div className="mb-4 flex flex-col gap-4">
                         <div>
-                            <p className="section-label mb-1">Stay on top of it</p>
-                            <h2 id="task-list-heading" className="font-display text-2xl font-semibold text-ink">Your tasks</h2>
+                            <p className="section-label mb-1">Your workload</p>
+                            <h2 id="task-list-heading" className="font-display text-2xl font-semibold text-text">Your tasks</h2>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
-                            <label className="sr-only" htmlFor="statusFilter">Filter by status</label>
-                            <select id="statusFilter" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} className="input-base px-2 sm:px-4">
-                                {STATUSES.map((status) => <option key={status.value} value={status.value}>{status.label}</option>)}
-                            </select>
-                            <label className="sr-only" htmlFor="categoryFilter">Filter by category</label>
-                            <select id="categoryFilter" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="input-base px-2 sm:px-4">
-                                <option value="">All categories</option>
-                                {CATEGORIES.map((category) => <option key={category} value={category}>{labelizeTaskValue(category)}</option>)}
-                            </select>
+                        <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="grid grid-cols-2 gap-1 rounded-xl border border-border bg-surface-2 p-1 sm:grid-cols-4" role="group" aria-label="Filter tasks by status">
+                                {STATUSES.map((status) => (
+                                    <button
+                                        key={status.value || 'all'}
+                                        type="button"
+                                        aria-pressed={statusFilter === status.value}
+                                        onClick={() => setStatusFilter(status.value)}
+                                        className={`flex min-w-0 items-center justify-center gap-2 rounded-lg px-3 py-2 font-body text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus ${
+                                            statusFilter === status.value
+                                                ? 'bg-surface text-text shadow-sm'
+                                                : 'text-text-muted hover:text-text'
+                                        }`}
+                                    >
+                                        <span>{status.label}</span>
+                                        <span className="font-mono text-xs text-text-faint">{statusCounts[status.value]}</span>
+                                    </button>
+                                ))}
+                            </div>
+                            <div className="grid min-w-0 grid-cols-2 gap-2 lg:w-[min(100%,26rem)]">
+                                <label className="sr-only" htmlFor="categoryFilter">Filter by category</label>
+                                <select id="categoryFilter" value={categoryFilter} onChange={(event) => setCategoryFilter(event.target.value)} className="input-base min-w-0 px-3 py-2.5">
+                                    <option value="">All categories</option>
+                                    {CATEGORIES.map((category) => <option key={category} value={category}>{labelizeTaskValue(category)}</option>)}
+                                </select>
+                                <div className="input-base flex min-w-0 items-center gap-2 px-3 py-2.5" aria-label="Task sort order">
+                                    <span className="shrink-0 text-text-faint">Sort</span>
+                                    <span className="truncate text-text">Deadline · soonest first</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -211,23 +223,21 @@ export default function Tasks() {
                         </div>
                     )}
 
-                    {loadError && (
-                        <div className="card-hard p-5 text-center" role="alert">
-                            <p className="font-body text-sm text-signal mb-3">{loadError}</p>
-                            <button type="button" onClick={loadTasks} className="btn-secondary text-sm">Try again</button>
-                        </div>
-                    )}
+                    {loadError && <ErrorState message={loadError} onRetry={loadTasks} />}
                     {!loadError && isLoading && (
-                        <div className="card-hard p-8 flex items-center justify-center gap-3" role="status">
-                            <div className="w-5 h-5 border-2 border-ink/20 border-t-signal rounded-full animate-spin" />
-                            <span className="font-mono text-xs text-ink-faint tracking-widest uppercase">Loading tasks</span>
+                        <div className="space-y-3" role="status" aria-label="Loading tasks">
+                            <Skeleton className="h-24 w-full" />
+                            <Skeleton className="h-24 w-full" />
+                            <Skeleton className="h-24 w-full" />
                         </div>
                     )}
                     {!loadError && !isLoading && tasks.length === 0 && (
-                        <div className="card-hard p-8 text-center">
-                            <p className="font-display text-lg font-semibold text-ink mb-1">No tasks here yet</p>
-                            <p className="font-body text-sm text-ink-muted">Add a task above or adjust your filters.</p>
-                        </div>
+                        <EmptyState
+                            title={`No ${statusFilter ? labelizeTaskValue(statusFilter) : ''} tasks found`.replace(/\s+/g, ' ').trim()}
+                            body={categoryFilter
+                                ? `There are no ${labelizeTaskValue(categoryFilter)} tasks in this view. Try another category or status filter.`
+                                : 'There are no tasks in this view. Add a task above or choose another status filter.'}
+                        />
                     )}
                     {!loadError && !isLoading && tasks.length > 0 && (
                         <div className="space-y-3">
@@ -243,8 +253,7 @@ export default function Tasks() {
                             ))}
                         </div>
                     )}
-                </section>
-            </main>
+            </section>
         </div>
     );
 }

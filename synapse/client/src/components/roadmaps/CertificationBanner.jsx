@@ -1,20 +1,20 @@
 import { costBadge } from './roadmapHelpers.js';
-
-const badgeClasses = {
-    free: 'bg-forest text-paper border border-forest',
-    partial: 'border border-amber-600 text-amber-800',
-    paid: 'border border-ink/30 text-ink',
-    none: 'border border-ink/30 text-ink',
-};
+import StatusBadge from '../ui/StatusBadge.jsx';
 
 export default function CertificationBanner({ certification = {}, alternatives = [] }) {
     if (!certification.status || certification.status === 'none') return null;
 
     const badge = costBadge(certification);
+    const tone = {
+        free: 'success',
+        partial: 'warning',
+        paid: 'warning',
+        none: 'neutral',
+    }[badge.tone];
 
     return (
         <section className="card-hard p-4 sm:p-5 space-y-3" aria-label="Certification information">
-            <span className={`tag-pill ${badgeClasses[badge.tone]}`}>{badge.label}</span>
+            <StatusBadge tone={tone} label={badge.label} />
             {certification.status === 'matched' && (
                 <div>
                     <h2 className="font-display text-xl font-semibold text-ink break-words">{certification.name}</h2>

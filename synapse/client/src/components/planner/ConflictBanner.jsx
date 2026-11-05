@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { SEVERITY_LABEL } from './plannerHelpers.js';
+import StatusBadge from '../ui/StatusBadge.jsx';
 
 export default function ConflictBanner({ conflicts, onDismiss, compact = false }) {
     if (!Array.isArray(conflicts) || conflicts.length === 0) return null;
@@ -9,14 +10,14 @@ export default function ConflictBanner({ conflicts, onDismiss, compact = false }
 
     return (
         <section
-            className={`card-hard ${compact ? 'p-4' : 'p-5 sm:p-6'}`}
+            className={`card-hard border-l-4 border-l-warning ${compact ? 'p-4' : 'p-5 sm:p-6'}`}
             role="status"
             aria-labelledby="conflict-banner-heading"
         >
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                     <p className="section-label mb-1">Planner notice</p>
-                    <h2 id="conflict-banner-heading" className="font-display text-lg font-semibold text-ink">
+                    <h2 id="conflict-banner-heading" className="font-display text-lg font-semibold text-text">
                         Heads up: your schedule is tight
                     </h2>
                 </div>
@@ -30,21 +31,22 @@ export default function ConflictBanner({ conflicts, onDismiss, compact = false }
             <ul className={`mt-4 ${compact ? 'space-y-2' : 'space-y-3'}`}>
                 {visibleConflicts.map((conflict, index) => (
                     <li key={conflict.id ?? `${conflict.type}-${index}`} className="flex items-start gap-2">
-                        <span className={`tag-pill shrink-0 ${conflict.severity === 'high' ? 'bg-signal text-paper' : 'bg-forest text-paper'}`}>
-                            {SEVERITY_LABEL[conflict.severity] ?? 'NOTICE'}
-                        </span>
-                        <p className="font-body text-sm leading-relaxed text-ink-muted">{conflict.message}</p>
+                        <StatusBadge
+                            tone={conflict.severity === 'high' ? 'danger' : 'warning'}
+                            label={SEVERITY_LABEL[conflict.severity] ?? 'NOTICE'}
+                        />
+                        <p className="font-body text-sm leading-relaxed text-text-muted">{conflict.message}</p>
                     </li>
                 ))}
             </ul>
 
             {remainingCount > 0 && (
-                <p className="font-mono text-xs text-ink-faint mt-3">
+                <p className="mt-3 font-mono text-xs text-text-faint">
                     and {remainingCount} more
                 </p>
             )}
 
-            <div className="flex flex-wrap items-center gap-2 mt-5">
+            <div className="mt-5 flex flex-wrap items-center gap-2">
                 <Link to="/planner" state={{ autoPreview: true }} className="btn-primary text-sm px-4 py-2">
                     Make room
                 </Link>

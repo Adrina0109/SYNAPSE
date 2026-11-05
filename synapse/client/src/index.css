@@ -2,6 +2,86 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  color-scheme: light;
+  --bg: #F4F6FB;
+  --bg-elevated: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-2: #F0F2FA;
+  --border: rgba(15,16,32,0.08);
+  --border-strong: rgba(15,16,32,0.16);
+  --text: #0F1020;
+  --text-muted: #5B5E7A;
+  --text-faint: #8A8DA8;
+  --accent: #6A46F5;
+  --accent-strong: #5A36E6;
+  --accent-soft: rgba(106,70,245,0.12);
+  --blue: #2F7FE0;
+  --mint: #10A37A;
+  --danger: #D92D4B;
+  --warning: #C98A12;
+  --focus: #6A46F5;
+  --accent-foreground-rgb: 255 255 255;
+  --scrim-rgb: 0 0 0;
+  --accent-light: #8065F7;
+  --bg-rgb: 244 246 251;
+  --surface-rgb: 255 255 255;
+  --surface-2-rgb: 240 242 250;
+  --border-rgb: 15 16 32;
+  --border-strong-rgb: 15 16 32;
+  --text-rgb: 15 16 32;
+  --text-muted-rgb: 91 94 122;
+  --text-faint-rgb: 138 141 168;
+  --accent-rgb: 106 70 245;
+  --accent-strong-rgb: 90 54 230;
+  --accent-light-rgb: 128 101 247;
+  --blue-rgb: 47 127 224;
+  --mint-rgb: 16 163 122;
+  --danger-rgb: 217 45 75;
+  --warning-rgb: 201 138 18;
+  --focus-rgb: 106 70 245;
+}
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0B0A1F;
+  --bg-elevated: #110F2B;
+  --surface: #171538;
+  --surface-2: #1E1B45;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.16);
+  --text: #F4F3FF;
+  --text-muted: #A3A0C8;
+  --text-faint: #6F6C99;
+  --accent: #7C5CFF;
+  --accent-strong: #6A46F5;
+  --accent-soft: rgba(124,92,255,0.16);
+  --blue: #3B9DFF;
+  --mint: #34D399;
+  --danger: #F43F5E;
+  --warning: #F5B73B;
+  --focus: #A78BFA;
+  --accent-foreground-rgb: 255 255 255;
+  --scrim-rgb: 0 0 0;
+  --accent-light: #9B84FF;
+  --bg-rgb: 11 10 31;
+  --surface-rgb: 23 21 56;
+  --surface-2-rgb: 30 27 69;
+  --border-rgb: 255 255 255;
+  --border-strong-rgb: 255 255 255;
+  --text-rgb: 244 243 255;
+  --text-muted-rgb: 163 160 200;
+  --text-faint-rgb: 111 108 153;
+  --accent-rgb: 124 92 255;
+  --accent-strong-rgb: 106 70 245;
+  --accent-light-rgb: 155 132 255;
+  --blue-rgb: 59 157 255;
+  --mint-rgb: 52 211 153;
+  --danger-rgb: 244 63 94;
+  --warning-rgb: 245 183 59;
+  --focus-rgb: 167 139 250;
+}
+
 @layer base {
   * {
     box-sizing: border-box;
@@ -14,6 +94,9 @@
   body {
     @apply bg-paper text-ink font-body antialiased;
     font-feature-settings: 'ss01' on, 'ss02' on;
+    background-color: var(--bg);
+    color: var(--text);
+    transition: background-color 180ms ease, color 180ms ease;
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -21,7 +104,8 @@
   }
 
   ::selection {
-    @apply bg-signal text-paper;
+    background-color: var(--accent);
+    color: rgb(var(--accent-foreground-rgb));
   }
 
   /* Custom scrollbar */
@@ -37,84 +121,163 @@
       animation-iteration-count: 1 !important;
       transition-duration: 0.01ms !important;
     }
+
+    .skeleton-shimmer::after {
+      animation: none !important;
+    }
+
+    html {
+      scroll-behavior: auto;
+    }
   }
 }
 
 @layer components {
   /* Input base */
   .input-base {
-    @apply w-full px-4 py-3 bg-paper border border-ink/20 text-ink placeholder:text-ink-faint
-           font-body text-sm outline-none
-           focus:border-ink focus:ring-1 focus:ring-ink
-           transition-colors duration-150;
-    border-radius: 2px;
+    @apply w-full px-4 py-3 font-body text-sm outline-none transition-colors duration-150;
+    background-color: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+  }
+
+  .input-base::placeholder {
+    color: var(--text-faint);
+    opacity: 1;
+  }
+
+  .input-base:focus {
+    border-color: var(--focus);
+    box-shadow: 0 0 0 3px rgb(var(--focus-rgb) / 0.2);
   }
 
   .input-base[aria-invalid="true"] {
-    @apply border-signal focus:border-signal focus:ring-signal;
+    border-color: var(--danger);
+  }
+
+  .input-base[aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 3px rgb(var(--danger-rgb) / 0.2);
   }
 
   /* Button variants */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2
-           px-6 py-3 bg-signal text-paper font-body font-medium text-sm
-           border border-signal
+           px-6 py-3 font-body font-medium text-sm
            transition-all duration-150 cursor-pointer
-           hover:bg-signal-dark hover:border-signal-dark
-           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal
            disabled:opacity-50 disabled:cursor-not-allowed;
-    border-radius: 2px;
+    background-color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    color: rgb(var(--accent-foreground-rgb));
+  }
+
+  [data-theme="dark"] .btn-primary {
+    background-color: var(--accent-strong);
+    border-color: var(--accent-strong);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-strong);
+    border-color: var(--accent-strong);
+  }
+
+  .btn-primary:focus-visible,
+  .btn-secondary:focus-visible,
+  .btn-ghost:focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
   }
 
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2
-           px-6 py-3 bg-transparent text-ink font-body font-medium text-sm
-           border border-ink/30
+           px-6 py-3 font-body font-medium text-sm
            transition-all duration-150 cursor-pointer
-           hover:border-ink hover:bg-ink hover:text-paper
-           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink
            disabled:opacity-50 disabled:cursor-not-allowed;
-    border-radius: 2px;
+    background-color: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    color: var(--text);
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    background-color: var(--surface-2);
   }
 
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2
-           px-4 py-2 bg-transparent text-ink-muted font-body text-sm
+           px-4 py-2 font-body text-sm
            transition-colors duration-150 cursor-pointer
-           hover:text-ink
-           focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink
            disabled:opacity-50 disabled:cursor-not-allowed;
+    background-color: transparent;
+    border: 0;
+    border-radius: 10px;
+    color: var(--text-muted);
   }
 
-  /* Card with hard shadow */
+  .btn-ghost:hover:not(:disabled) {
+    background-color: var(--surface-2);
+    color: var(--text);
+  }
+
   .card-hard {
-    @apply bg-paper border border-ink/15;
-    box-shadow: 4px 4px 0px rgba(22, 20, 15, 0.12);
-    border-radius: 2px;
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
   }
 
-  /* Section label */
+  [data-theme="dark"] .card-hard {
+    box-shadow: inset 0 1px 0 rgb(var(--text-rgb) / 0.035);
+  }
+
   .section-label {
-    @apply font-mono text-xs tracking-widest uppercase text-ink-faint;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-faint);
   }
 
   /* Hairline border */
   .hairline {
-    @apply border-ink/10;
+    border-color: var(--border);
   }
 
-  /* Tag pill */
   .tag-pill {
     @apply inline-flex items-center gap-1 px-2 py-0.5
-           bg-ink text-paper font-mono text-xs;
-    border-radius: 2px;
+           font-mono text-xs;
+    background-color: var(--accent-soft);
+    border-radius: 9999px;
+    color: var(--accent);
   }
 
   .tag-pill-outline {
     @apply inline-flex items-center gap-1 px-2 py-0.5
-           border border-ink/20 text-ink-muted font-mono text-xs;
-    border-radius: 2px;
+           font-mono text-xs;
+    background-color: transparent;
+    border: 1px solid var(--border-strong);
+    border-radius: 9999px;
+    color: var(--text-muted);
   }
+
+  .skeleton-shimmer {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--surface-2);
+  }
+
+  .skeleton-shimmer::after {
+    position: absolute;
+    inset: 0;
+    content: "";
+    transform: translateX(-100%);
+    background: linear-gradient(90deg, transparent, rgb(var(--text-rgb) / 0.08), transparent);
+    animation: skeleton-shimmer 1.5s infinite;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  to { transform: translateX(100%); }
 }
 
 /* SVG animation helpers */
@@ -165,7 +328,7 @@
 
   .share-public-card,
   .share-public-card .card-hard {
-    border-color: #d6d3cd !important;
+    border-color: var(--border-strong) !important;
     box-shadow: none !important;
   }
 
