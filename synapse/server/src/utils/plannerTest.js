@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import {
     computeCapacity,
     conflictsInvolving,
     detectConflictsCore,
     getTaskPlan,
+    planReplanCore,
+    applyPlansToFixtures,
 } from './plannerCore.js';
 
 const today = new Date('2026-11-05T09:00:00+05:30');
@@ -211,6 +214,153 @@ check('conflictsInvolving compares task IDs as strings', () => {
     const filtered = conflictsInvolving(initialConflicts, ['task-a']);
     assert.ok(filtered.some((conflict) => conflict.type === 'deadline_cluster'));
     assert.ok(filtered.every((conflict) => conflict.taskIds.includes('task-a')));
+});
+
+const examReplan = planReplanCore({
+    user,
+    tasks: [taskA, taskB, taskC],
+    roadmaps: [roadmap],
+    today,
+});
+const replannedFixtures = applyPlansToFixtures(
+    { tasks: [taskA, taskB, taskC], roadmaps: [roadmap] },
+    examReplan
+);
+const replannedCapacity = computeCapacity({
+    user,
+    tasks: replannedFixtures.tasks,
+    roadmaps: replannedFixtures.roadmaps,
+    today,
+    days: 30,
+});
+
+check('exam replan protects assessment work and fits task and roadmap load', () => {
+    assert.equal(examReplan.hasChanges, true);
+    assert.deepEqual(examReplan.shortfalls, []);
+    assert.equal(
+        getTaskPlan(replannedFixtures.tasks.find((task) => task._id === 'task-c'), today)
+            .reduce((sum, entry) => sum + entry.hours, 0),
+        8
+    );
+    assert.ok(examReplan.taskChanges.some((change) => (
+        ['task-a', 'task-b'].includes(change.taskId)
+        && change.moves.some((move) => move.reason === 'made_room' && move.to > move.from)
+    )));
+    assert.equal(examReplan.taskChanges.some((change) => change.taskId === 'task-c'), false);
+    assert.ok(examReplan.roadmapChanges.length > 0);
+    examReplan.newTaskPlans.forEach(({ taskId, plan }) => {
+        const task = [taskA, taskB, taskC].find((entry) => entry._id === taskId);
+        const deadline = new Date(task.deadline);
+        plan.forEach(({ date }) => {
+            assert.ok(new Date(`${date}T00:00:00+05:30`) <= deadline);
+        });
+    });
+    assert.ok(replannedCapacity.days.every((day) => day.totalHours <= 4));
+    const placedDays = replannedFixtures.roadmaps[0].days;
+    const placedDates = placedDays.map((day) => day.date.toISOString());
+    assert.equal(new Set(placedDates).size, placedDates.length);
+    assert.ok(placedDays.every((day, index) => (
+        index === 0 || day.date.getTime() > placedDays[index - 1].date.getTime()
+    )));
+});
+
+check('replanning an applied result is idempotent', () => {
+    const secondResult = planReplanCore({
+        user,
+        tasks: replannedFixtures.tasks,
+        roadmaps: replannedFixtures.roadmaps,
+        today,
+    });
+    assert.equal(secondResult.hasChanges, false);
+    assert.deepEqual(secondResult.newTaskPlans, []);
+    assert.deepEqual(secondResult.roadmapDateUpdates, []);
+});
+
+check('replan fingerprint is the stable hash of plan updates', () => {
+    const payload = {
+        newTaskPlans: examReplan.newTaskPlans.map(({ taskId, plan }) => ({
+            taskId,
+            plan: plan.map(({ date, hours }) => ({ date, hours })),
+        })),
+        roadmapDateUpdates: examReplan.roadmapDateUpdates.map(({ roadmapId, dayNumber, date }) => ({
+            roadmapId,
+            dayNumber,
+            date,
+        })),
+    };
+    const fingerprint = createHash('sha256')
+        .update(JSON.stringify(payload))
+        .digest('hex')
+        .slice(0, 16);
+    assert.equal(examReplan.fingerprint, fingerprint);
+});
+
+check('already-fitting tasks with eight daily hours need no changes', () => {
+    const result = planReplanCore({
+        user: { dailyHours: 8 },
+        tasks: [taskA, taskB],
+        roadmaps: [],
+        today,
+    });
+    assert.equal(result.hasChanges, false);
+});
+
+check('an impossible assessment reports four total shortfall hours without moving past deadline', () => {
+    const impossibleAssessment = {
+        _id: 'impossible-exam',
+        title: 'Large exam',
+        status: 'pending',
+        category: 'assessment',
+        priority: 'high',
+        estimatedHours: 12,
+        deadline: new Date('2026-11-06T00:00:00+05:30'),
+    };
+    const result = planReplanCore({
+        user,
+        tasks: [impossibleAssessment],
+        roadmaps: [],
+        today,
+    });
+    assert.equal(result.summary.shortfallHours, 4);
+    assert.deepEqual(result.shortfalls.map((shortfall) => shortfall.hoursOver), [2, 2]);
+    assert.ok(getTaskPlan(impossibleAssessment, today).every(({ date }) => date <= '2026-11-06'));
+    result.newTaskPlans.forEach(({ plan }) => {
+        assert.ok(plan.every(({ date }) => date <= '2026-11-06'));
+    });
+});
+
+check('behind roadmap days are placed from today with the correct reason', () => {
+    const behindRoadmap = {
+        _id: 'roadmap-behind',
+        goal: 'Behind plan',
+        status: 'active',
+        createdAt: new Date('2026-10-01T00:00:00+05:30'),
+        days: [
+            { dayNumber: 1, date: new Date('2026-11-03T00:00:00+05:30'), estimatedHours: 2, completed: false },
+            { dayNumber: 2, date: new Date('2026-11-04T00:00:00+05:30'), estimatedHours: 2, completed: false },
+        ],
+    };
+    const result = planReplanCore({ user, tasks: [], roadmaps: [behindRoadmap], today });
+    assert.deepEqual(result.roadmapChanges.map((change) => change.newDate), [
+        '2026-11-05',
+        '2026-11-06',
+    ]);
+    assert.ok(result.roadmapChanges.every((change) => change.reason === 'behind_schedule'));
+});
+
+check('completed tasks, deadline-free tasks, and paused roadmaps are ignored', () => {
+    const completedTask = { ...taskA, _id: 'completed-ignored', status: 'completed' };
+    const noDeadlineTask = { ...taskB, _id: 'no-deadline', deadline: null };
+    const pausedRoadmap = { ...roadmap, _id: 'paused-ignored', status: 'paused' };
+    const result = planReplanCore({
+        user,
+        tasks: [completedTask, noDeadlineTask],
+        roadmaps: [pausedRoadmap],
+        today,
+    });
+    assert.equal(result.hasChanges, false);
+    assert.deepEqual(result.taskChanges, []);
+    assert.deepEqual(result.roadmapChanges, []);
 });
 
 if (failures > 0) process.exitCode = 1;
