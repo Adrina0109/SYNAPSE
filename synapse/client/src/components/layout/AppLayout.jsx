@@ -1,5 +1,6 @@
 import { useLocation, useOutlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
+import AssistantWidget from '../assistant/AssistantWidget.jsx';
 import MobileNav from './MobileNav.jsx';
 import Sidebar from './Sidebar.jsx';
 import TopBar from './TopBar.jsx';
@@ -18,6 +19,7 @@ export default function AppLayout() {
     const { user } = useAuth();
     const location = useLocation();
     const outlet = useOutlet();
+    const showAssistant = user?.role === 'student' && location.pathname !== '/assistant';
 
     return (
         <div className="min-h-screen min-w-0 bg-bg text-text lg:pl-64">
@@ -27,6 +29,7 @@ export default function AppLayout() {
             <main className="mx-auto min-w-0 w-full max-w-[1600px] px-4 py-6 md:px-8 lg:px-10 lg:py-8">
                 {outlet}
             </main>
+            {showAssistant && <AssistantWidget />}
         </div>
     );
 }

@@ -1,6 +1,5 @@
 import {
     AnnouncementsIcon,
-    AssistantIcon,
     DashboardIcon,
     DocumentsIcon,
     PlacementIcon,
@@ -25,7 +24,6 @@ export const getNavGroups = (role) => {
                 label: 'LEARNING',
                 items: [
                     { label: 'Roadmaps', to: '/roadmaps', icon: RoadmapsIcon },
-                    { label: 'AI Assistant', to: '/assistant', icon: AssistantIcon },
                     { label: 'Announcements', to: '/announcements/inbox', icon: AnnouncementsIcon },
                 ],
             },
