@@ -98,7 +98,7 @@ export default function StudentDetailDrawer({
 
     return (
         <div
-            className="fixed inset-0 z-[80] bg-black/55"
+            className="fixed inset-0 z-[80] bg-scrim/55"
             role="presentation"
             onMouseDown={(event) => {
                 if (event.target === event.currentTarget) onClose();

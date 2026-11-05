@@ -1,15 +1,13 @@
-@media (prefers-reduced-motion: no-preference) {
-    .mentor-detail-drawer {
-        animation: mentor-detail-enter 180ms ease-out both;
+.mentor-detail-drawer {
+    animation: mentor-detail-enter 180ms ease-out both;
+}
+
+@keyframes mentor-detail-enter {
+    from {
+        transform: translateX(100%);
     }
 
-    @keyframes mentor-detail-enter {
-        from {
-            transform: translateX(100%);
-        }
-
-        to {
-            transform: translateX(0);
-        }
+    to {
+        transform: translateX(0);
     }
 }

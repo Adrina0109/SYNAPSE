@@ -44,7 +44,10 @@ export default function ConfirmDialog({
             }
             const first = focusableElements[0];
             const last = focusableElements[focusableElements.length - 1];
-            if (event.shiftKey && document.activeElement === first) {
+            if (!dialogRef.current?.contains(document.activeElement)) {
+                event.preventDefault();
+                first.focus();
+            } else if (event.shiftKey && document.activeElement === first) {
                 event.preventDefault();
                 last.focus();
             } else if (!event.shiftKey && document.activeElement === last) {
@@ -66,7 +69,7 @@ export default function ConfirmDialog({
     const isDanger = variant === 'danger';
 
     return (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/55 p-4">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-scrim/55 p-4">
             <div
                 ref={dialogRef}
                 role={isDanger ? 'alertdialog' : 'dialog'}

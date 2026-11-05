@@ -372,7 +372,7 @@ export default function AdminDashboard() {
                 ) : analyticsError ? (
                     <ErrorState message={analyticsError} onRetry={loadAnalytics} />
                 ) : (
-                    <RiskDistribution distribution={riskDistribution} />
+                    <RiskDistribution distribution={riskDistribution} contextLabel="Institution overview" />
                 )}
                 <UserManagementCard
                     users={users}

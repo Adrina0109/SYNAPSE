@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
+import PageHeader from '../components/ui/PageHeader.jsx';
 
 const SOURCES = [
     { value: 'official_circular', label: 'Official circular' },
@@ -105,15 +106,12 @@ export default function Announcements() {
     return (
         <div className="min-h-screen bg-paper">
             <div className="mx-auto w-full max-w-5xl">
-                <header className="mb-8">
-                    <p className="section-label mb-2">Share with students</p>
-                    <h1 className="font-display text-4xl font-bold text-ink sm:text-5xl">Announcements</h1>
-                    <p className="mt-2 font-body text-ink-muted">
-                        {isAdmin
-                            ? 'Send to all students or to a mentor’s assigned students.'
-                            : 'Announcements are delivered only to your assigned students.'}
-                    </p>
-                </header>
+                <PageHeader
+                    title="Announcements"
+                    subtitle={isAdmin
+                        ? 'Send to all students or to a mentor’s assigned students.'
+                        : 'Announcements are delivered only to your assigned students.'}
+                />
 
                 {feedback && <p className="mb-5 border border-forest/30 bg-forest/10 px-4 py-3 text-sm text-forest" role="status">{feedback}</p>}
                 {error && <p className="mb-5 border border-signal/30 bg-signal/10 px-4 py-3 text-sm text-signal" role="alert">{error}</p>}

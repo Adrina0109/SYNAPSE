@@ -57,7 +57,10 @@ export default function MobileNav() {
             if (elements.length === 0) return;
             const first = elements[0];
             const last = elements[elements.length - 1];
-            if (event.shiftKey && document.activeElement === first) {
+            if (!drawerRef.current?.contains(document.activeElement)) {
+                event.preventDefault();
+                first.focus();
+            } else if (event.shiftKey && document.activeElement === first) {
                 event.preventDefault();
                 last.focus();
             } else if (!event.shiftKey && document.activeElement === last) {
@@ -104,7 +107,7 @@ export default function MobileNav() {
                         type="button"
                         aria-label="Close navigation menu"
                         onClick={closeDrawer}
-                        className="absolute inset-0 h-full w-full bg-black/50"
+                        className="absolute inset-0 h-full w-full bg-scrim/50"
                     />
                     <aside
                         id="mobile-navigation-drawer"

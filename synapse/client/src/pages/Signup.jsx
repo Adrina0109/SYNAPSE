@@ -286,7 +286,7 @@ export default function Signup() {
                         >
                             {isLoading ? (
                                 <>
-                                    <div className="w-4 h-4 border-2 border-paper/30 border-t-paper rounded-full animate-spin" />
+                                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-accent-foreground/30 border-t-accent-foreground" />
                                     Creating account…
                                 </>
                             ) : (
@@ -316,14 +316,14 @@ export default function Signup() {
 function SignalLogo() {
     return (
         <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <circle cx="4" cy="14" r="2.5" fill="#E8401C" />
-            <circle cx="14" cy="6" r="2.5" fill="#E8401C" />
-            <circle cx="24" cy="14" r="2.5" fill="#E8401C" />
-            <circle cx="14" cy="22" r="2.5" fill="#E8401C" />
-            <line x1="4" y1="14" x2="14" y2="6" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.4" />
-            <line x1="14" y1="6" x2="24" y2="14" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.4" />
-            <line x1="24" y1="14" x2="14" y2="22" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.4" />
-            <line x1="14" y1="22" x2="4" y2="14" stroke="#16140F" strokeWidth="1.5" strokeOpacity="0.4" />
+            <circle cx="4" cy="14" r="2.5" fill="var(--accent)" />
+            <circle cx="14" cy="6" r="2.5" fill="var(--accent)" />
+            <circle cx="24" cy="14" r="2.5" fill="var(--accent)" />
+            <circle cx="14" cy="22" r="2.5" fill="var(--accent)" />
+            <line x1="4" y1="14" x2="14" y2="6" stroke="var(--text)" strokeWidth="1.5" strokeOpacity="0.4" />
+            <line x1="14" y1="6" x2="24" y2="14" stroke="var(--text)" strokeWidth="1.5" strokeOpacity="0.4" />
+            <line x1="24" y1="14" x2="14" y2="22" stroke="var(--text)" strokeWidth="1.5" strokeOpacity="0.4" />
+            <line x1="14" y1="22" x2="4" y2="14" stroke="var(--text)" strokeWidth="1.5" strokeOpacity="0.4" />
         </svg>
     );
 }

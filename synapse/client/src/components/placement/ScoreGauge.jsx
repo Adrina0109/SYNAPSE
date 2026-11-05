@@ -19,7 +19,7 @@ export default function ScoreGauge({ score }) {
                     cy="60"
                     r={RADIUS}
                     fill="none"
-                    stroke="rgb(22 20 15 / 0.12)"
+                    stroke="rgb(var(--text-rgb) / 0.12)"
                     strokeWidth="10"
                 />
                 <circle

@@ -15,6 +15,7 @@ export default function TopBar({ title }) {
     const navigate = useNavigate();
     const [activePopover, setActivePopover] = useState('');
     const containerRef = useRef(null);
+    const notificationButtonRef = useRef(null);
     const menuButtonRef = useRef(null);
 
     useEffect(() => {
@@ -24,8 +25,11 @@ export default function TopBar({ title }) {
         };
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') {
+                const activeButton = activePopover === 'notifications'
+                    ? notificationButtonRef.current
+                    : menuButtonRef.current;
                 setActivePopover('');
-                menuButtonRef.current?.focus();
+                activeButton?.focus();
             }
         };
         document.addEventListener('pointerdown', handlePointerDown);
@@ -51,6 +55,7 @@ export default function TopBar({ title }) {
             <div ref={containerRef} className="flex shrink-0 items-center gap-2 sm:gap-3">
                 <div className="relative">
                     <button
+                        ref={notificationButtonRef}
                         type="button"
                         aria-label="Notifications"
                         aria-expanded={activePopover === 'notifications'}

@@ -154,7 +154,7 @@ export default function MonthCalendar({ tasks = [] }) {
                                         <span className="hidden sm:inline font-mono text-[8px] tracking-wide text-accent">TODAY</span>
                                     )}
                                     {dayTasks.length > 0 && (
-                                        <span className="ml-auto rounded-sm bg-accent px-1 py-0.5 font-mono text-[8px] leading-none text-white sm:hidden">
+                                        <span className="ml-auto rounded-sm bg-accent px-1 py-0.5 font-mono text-[8px] leading-none text-accent-foreground sm:hidden">
                                             {dayTasks.length}
                                         </span>
                                     )}

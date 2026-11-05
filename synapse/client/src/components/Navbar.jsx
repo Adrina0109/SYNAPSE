@@ -29,11 +29,11 @@ const linksByRole = {
 
 const Logo = () => (
     <svg width="24" height="24" viewBox="0 0 28 28" fill="none" aria-hidden="true">
-        <circle cx="4" cy="14" r="2.5" fill="#E8401C" />
-        <circle cx="14" cy="6" r="2.5" fill="#E8401C" />
-        <circle cx="24" cy="14" r="2.5" fill="#E8401C" />
-        <circle cx="14" cy="22" r="2.5" fill="#E8401C" />
-        <path d="M6 13 12 7M16 7l6 6m-1 3-6 5m-3 0-6-5" stroke="#16140F" strokeOpacity=".4" strokeWidth="1.5" />
+        <circle cx="4" cy="14" r="2.5" fill="var(--accent)" />
+        <circle cx="14" cy="6" r="2.5" fill="var(--accent)" />
+        <circle cx="24" cy="14" r="2.5" fill="var(--accent)" />
+        <circle cx="14" cy="22" r="2.5" fill="var(--accent)" />
+        <path d="M6 13 12 7M16 7l6 6m-1 3-6 5m-3 0-6-5" stroke="var(--text)" strokeOpacity=".4" strokeWidth="1.5" />
     </svg>
 );
 
@@ -142,7 +142,7 @@ export default function Navbar() {
                                     </svg>
                                     <span>Inbox</span>
                                     {notificationCount > 0 && (
-                                        <span className="rounded-full bg-signal px-1.5 py-0.5 font-mono text-[10px] text-white">
+                                        <span className="rounded-full bg-signal px-1.5 py-0.5 font-mono text-[10px] text-accent-foreground">
                                             {notificationCount > 99 ? '99+' : notificationCount}
                                         </span>
                                     )}

@@ -7,20 +7,20 @@ const LEVELS = [
     { key: 'low', label: 'Low risk', tone: 'success', color: 'bg-mint' },
 ];
 
-export default function RiskDistribution({ distribution }) {
+export default function RiskDistribution({ distribution, contextLabel = 'Class overview' }) {
     const total = LEVELS.reduce((sum, level) => sum + (distribution?.[level.key] || 0), 0);
 
     return (
         <Card className="min-w-0 p-4 sm:p-5">
             <div className="mb-4">
-                <p className="section-label mb-1">Class overview</p>
+                <p className="section-label mb-1">{contextLabel}</p>
                 <h2 className="font-display text-xl font-semibold text-text">Risk distribution</h2>
             </div>
             {total === 0 ? (
                 <p className="font-body text-sm text-text-muted">Risk data is not available yet.</p>
             ) : (
                 <>
-                    <div className="flex h-3 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`${total} assigned students by risk level`}>
+                    <div className="flex h-3 overflow-hidden rounded-full bg-surface-2" role="img" aria-label={`${total} students by risk level`}>
                         {LEVELS.map((level) => {
                             const count = distribution[level.key] || 0;
                             return count > 0 ? (

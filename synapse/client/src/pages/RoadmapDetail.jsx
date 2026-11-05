@@ -50,7 +50,8 @@ export default function RoadmapDetail() {
 
     useEffect(() => {
         if (!isLoading && roadmap?.progress?.todayDayNumber && todayRef.current && !didScrollToday.current) {
-            todayRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+            todayRef.current.scrollIntoView({ block: 'center', behavior });
             didScrollToday.current = true;
         }
     }, [isLoading, roadmap]);

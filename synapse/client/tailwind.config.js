@@ -19,6 +19,8 @@ export default {
                 accent: 'rgb(var(--accent-rgb) / <alpha-value>)',
                 'accent-strong': 'rgb(var(--accent-strong-rgb) / <alpha-value>)',
                 'accent-soft': 'var(--accent-soft)',
+                'accent-foreground': 'rgb(var(--accent-foreground-rgb) / <alpha-value>)',
+                scrim: 'rgb(var(--scrim-rgb) / <alpha-value>)',
                 blue: 'rgb(var(--blue-rgb) / <alpha-value>)',
                 mint: 'rgb(var(--mint-rgb) / <alpha-value>)',
                 danger: 'rgb(var(--danger-rgb) / <alpha-value>)',

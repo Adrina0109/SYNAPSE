@@ -1,12 +1,11 @@
 /**
  * The right-hand accent panel used on auth pages (Login / Signup).
- * Bold signal-red background with the SVG signal-network motif and a quote.
+ * The accent background carries the SVG signal-network motif and a quote.
  */
 export default function SynapseSignalPanel({ quote, subtext }) {
     return (
         <div
-            className="hidden lg:flex flex-col justify-between p-12 xl:p-16"
-            style={{ background: '#E8401C', minWidth: '420px', maxWidth: '520px' }}
+            className="hidden min-w-0 flex-col justify-between bg-accent p-12 text-accent-foreground lg:flex xl:p-16"
         >
             {/* Top: Signal-network SVG */}
             <div className="flex-1 flex items-center justify-center">
@@ -15,11 +14,11 @@ export default function SynapseSignalPanel({ quote, subtext }) {
 
             {/* Bottom: Quote */}
             <div>
-                <div className="w-8 h-px bg-white/40 mb-6" />
-                <blockquote className="font-display text-white text-2xl font-semibold leading-tight mb-3">
+                <div className="mb-6 h-px w-8 bg-accent-foreground/40" />
+                <blockquote className="mb-3 font-display text-2xl font-semibold leading-tight text-accent-foreground">
                     "{quote}"
                 </blockquote>
-                <p className="font-body text-white/70 text-sm">{subtext}</p>
+                <p className="font-body text-sm text-accent-foreground/70">{subtext}</p>
             </div>
         </div>
     );
@@ -49,7 +48,7 @@ function AnimatedSignalSVG() {
                     y1={nodes[a].cy}
                     x2={nodes[b].cx}
                     y2={nodes[b].cy}
-                    stroke="white"
+                    stroke="var(--accent-foreground)"
                     strokeWidth="1"
                     strokeOpacity="0.35"
                     strokeDasharray="500"
@@ -64,18 +63,18 @@ function AnimatedSignalSVG() {
             {/* Nodes */}
             {nodes.map((n, i) => (
                 <g key={i} style={{ animation: `fadeIn 0.4s ease forwards`, animationDelay: n.delay, opacity: 0 }}>
-                    <circle cx={n.cx} cy={n.cy} r="5" fill="white" fillOpacity="0.9" />
-                    <circle cx={n.cx} cy={n.cy} r="9" fill="white" fillOpacity="0.12" />
+                    <circle cx={n.cx} cy={n.cy} r="5" fill="var(--accent-foreground)" fillOpacity="0.9" />
+                    <circle cx={n.cx} cy={n.cy} r="9" fill="var(--accent-foreground)" fillOpacity="0.12" />
                     {/* Label chip */}
                     <g transform={`translate(${n.cx + 14}, ${n.cy - 7})`}>
                         <rect
                             x="0" y="0" width={n.label.length * 6.5 + 12} height="18"
-                            fill="white" fillOpacity="0.12"
+                            fill="var(--accent-foreground)" fillOpacity="0.12"
                             rx="2"
                         />
                         <text
                             x="6" y="13"
-                            fill="white"
+                            fill="var(--accent-foreground)"
                             fillOpacity="0.85"
                             fontSize="9"
                             fontFamily="JetBrains Mono, monospace"
