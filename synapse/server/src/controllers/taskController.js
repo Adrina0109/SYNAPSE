@@ -96,6 +96,9 @@ export const updateTask = async (req, res, next) => {
         }
 
         Object.assign(task, parsed.data);
+        if (parsed.data.deadline !== undefined || parsed.data.estimatedHours !== undefined) {
+            task.workPlan = [];
+        }
         if (parsed.data.status !== undefined) {
             task.completedAt = parsed.data.status === 'completed' ? new Date() : null;
         }
@@ -117,7 +120,9 @@ export const toggleTask = async (req, res, next) => {
             return res.status(404).json({ success: false, message: 'Task not found.' });
         }
 
-        task.status = task.status === 'completed' ? 'pending' : 'completed';
+        const wasCompleted = task.status === 'completed';
+        task.status = wasCompleted ? 'pending' : 'completed';
+        if (wasCompleted) task.workPlan = [];
         task.completedAt = task.status === 'completed' ? new Date() : null;
         await task.save();
 
