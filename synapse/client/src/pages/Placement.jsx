@@ -9,6 +9,7 @@ import ScoreHistory from '../components/placement/ScoreHistory.jsx';
 import InterviewChecklist from '../components/placement/InterviewChecklist.jsx';
 import MockSessions from '../components/placement/MockSessions.jsx';
 import ResumeGap from '../components/placement/ResumeGap.jsx';
+import DriveList from '../components/placement/DriveList.jsx';
 
 const PageNav = ({ user, onSignOut }) => (
     <nav className="border-b border-ink/10 px-4 py-4 flex flex-wrap items-center justify-between gap-3 sm:px-6 lg:px-10">
@@ -31,6 +32,7 @@ export default function Placement() {
     const [history, setHistory] = useState(null);
     const [roadmaps, setRoadmaps] = useState([]);
     const [checklist, setChecklist] = useState(null);
+    const [drives, setDrives] = useState([]);
     const [selectedRoadmapId, setSelectedRoadmapId] = useState('');
     const [whatIf, setWhatIf] = useState(null);
     const [whatIfLoading, setWhatIfLoading] = useState(false);
@@ -42,11 +44,12 @@ export default function Placement() {
         setIsLoading(true);
         setLoadError('');
         try {
-            const [readinessResponse, historyResponse, roadmapsResponse, checklistResponse] = await Promise.all([
+            const [readinessResponse, historyResponse, roadmapsResponse, checklistResponse, drivesResponse] = await Promise.all([
                 api.get('/placement/readiness'),
                 api.get('/placement/readiness/history'),
                 api.get('/roadmaps'),
                 api.get('/placement/checklist'),
+                api.get('/placement/drives'),
             ]);
             const availableRoadmaps = (roadmapsResponse.data.roadmaps || [])
                 .filter((roadmap) => ['active', 'completed'].includes(roadmap.status));
@@ -54,6 +57,7 @@ export default function Placement() {
             setHistory(historyResponse.data.history);
             setRoadmaps(availableRoadmaps);
             setChecklist(checklistResponse.data.checklist);
+            setDrives(drivesResponse.data.drives || []);
             setSelectedRoadmapId((current) => (
                 availableRoadmaps.some((roadmap) => roadmap._id === current)
                     ? current
@@ -227,6 +231,13 @@ export default function Placement() {
                             </div>
                         )}
                         <ResumeGap onRoadmapPreview={handleResumeRoadmapPreview} />
+                        <section className="space-y-4" aria-labelledby="placement-drives-heading">
+                            <div>
+                                <p className="section-label mb-2">Opportunities</p>
+                                <h2 id="placement-drives-heading" className="font-display text-2xl font-semibold text-ink">Placement drives</h2>
+                            </div>
+                            <DriveList drives={drives} />
+                        </section>
                     </div>
                 )}
             </main>
