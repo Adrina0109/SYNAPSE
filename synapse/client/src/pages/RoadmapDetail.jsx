@@ -9,6 +9,13 @@ import {
     RESOURCE_LABELS,
     roadmapStatusLabel,
 } from '../components/roadmaps/roadmapHelpers.js';
+import Card from '../components/ui/Card.jsx';
+import ErrorState from '../components/ui/ErrorState.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
+import ProgressBar from '../components/ui/ProgressBar.jsx';
+import Ring from '../components/ui/Ring.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
+import StatusBadge from '../components/ui/StatusBadge.jsx';
 
 export default function RoadmapDetail() {
     const { id } = useParams();
@@ -80,53 +87,54 @@ export default function RoadmapDetail() {
     };
 
     return (
-        <div className="min-h-screen bg-paper">
-            <div className="mx-auto w-full max-w-5xl">
+        <div className="mx-auto w-full max-w-5xl">
                 {isLoading ? (
-                    <div className="card-hard p-6 font-mono text-xs text-ink-faint" role="status">Loading roadmap…</div>
+                    <div role="status" aria-label="Loading roadmap">
+                        <Card className="space-y-4 p-6">
+                            <Skeleton className="h-7 w-2/3" />
+                            <Skeleton className="h-4 w-1/2" />
+                            <Skeleton className="h-40 w-full" />
+                        </Card>
+                    </div>
                 ) : loadError ? (
-                    <div className="card-hard p-6" role="alert">
-                        <Link to="/roadmaps" className="font-body text-sm text-forest underline underline-offset-2">Back to roadmaps</Link>
-                        <p className="font-body text-sm text-signal mt-4">{loadError}</p>
-                        <button type="button" onClick={loadRoadmap} className="btn-secondary mt-4">Try again</button>
+                    <div className="space-y-4">
+                        <Link to="/roadmaps" className="font-body text-sm text-accent underline underline-offset-2">Back to roadmaps</Link>
+                        <ErrorState message={loadError} onRetry={loadRoadmap} />
                     </div>
                 ) : roadmap ? (
                     <>
-                        <Link to="/roadmaps" className="inline-flex font-body text-sm text-forest underline underline-offset-2 mb-6">
-                            Back to roadmaps
-                        </Link>
-                        <header className="mb-6">
-                            <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Your learning plan</p>
-                            <h1 className="font-display text-3xl sm:text-5xl font-bold text-ink break-words">{roadmap.goal}</h1>
-                            <div className="flex flex-wrap gap-2 mt-4">
-                                <span className="tag-pill-outline">{LEVEL_LABELS[roadmap.currentLevel]}</span>
-                                <span className="tag-pill-outline">{roadmapStatusLabel(roadmap.status)}</span>
-                                <span className="tag-pill-outline">{PATH_LABELS[roadmap.pathType]}</span>
-                                <span className="tag-pill-outline">{roadmap.hoursPerDay}h per day</span>
-                            </div>
-                        </header>
+                        <PageHeader
+                            title={roadmap.goal}
+                            subtitle="Your learning plan"
+                            actions={<Link to="/roadmaps" className="btn-secondary">Back to roadmaps</Link>}
+                        />
 
-                        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_auto] gap-4 mb-8">
+                        <div className="mb-8 grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
                             <CertificationBanner certification={roadmap.certification} alternatives={[]} />
-                            <div className="card-hard p-4 sm:p-5 min-w-0">
-                                <div className="flex items-center justify-between gap-3 mb-2">
-                                    <p className="section-label">Progress</p>
-                                    <span className="font-mono text-sm text-ink">
-                                        {roadmap.progress?.completionPercent || 0}%
-                                    </span>
+                            <Card className="flex min-w-0 flex-col items-center gap-5 p-4 sm:flex-row sm:p-5">
+                                <Ring value={roadmap.progress?.completionPercent || 0} label="Progress" />
+                                <div className="min-w-0 flex-1 space-y-4">
+                                    <div className="flex flex-wrap gap-2">
+                                        <StatusBadge tone="neutral" label={LEVEL_LABELS[roadmap.currentLevel]} />
+                                        <StatusBadge
+                                            tone={roadmap.status === 'completed' ? 'success' : roadmap.status === 'active' ? 'accent' : 'neutral'}
+                                            label={roadmapStatusLabel(roadmap.status)}
+                                        />
+                                        <StatusBadge tone="accent" label={PATH_LABELS[roadmap.pathType]} />
+                                        <StatusBadge tone="neutral" label={`${roadmap.hoursPerDay}h per day`} />
+                                    </div>
+                                    <ProgressBar
+                                        value={roadmap.progress?.completionPercent || 0}
+                                        label={`${roadmap.progress?.completedDays || 0} of ${roadmap.progress?.totalDays || 0} days complete`}
+                                    />
+                                    <StatusBadge
+                                        tone={roadmap.progress?.currentStreak ? 'success' : 'neutral'}
+                                        label={roadmap.progress?.currentStreak
+                                            ? `STREAK ${roadmap.progress.currentStreak} DAYS`
+                                            : 'NO STREAK YET'}
+                                    />
                                 </div>
-                                <p className="font-body text-sm text-ink-muted mb-3">
-                                    {roadmap.progress?.completedDays || 0} of {roadmap.progress?.totalDays || 0} days complete
-                                </p>
-                                <div className="h-2 min-w-40 bg-ink/10 overflow-hidden" role="progressbar" aria-valuenow={roadmap.progress?.completionPercent || 0} aria-valuemin="0" aria-valuemax="100" aria-label="Roadmap progress">
-                                    <div className="h-full bg-forest transition-all" style={{ width: `${roadmap.progress?.completionPercent || 0}%` }} />
-                                </div>
-                                <p className="font-mono text-xs text-ink-faint mt-4">
-                                    {roadmap.progress?.currentStreak
-                                        ? `STREAK ${roadmap.progress.currentStreak} DAYS`
-                                        : 'NO STREAK YET'}
-                                </p>
-                            </div>
+                            </Card>
                         </div>
 
                         {actionError && (
@@ -147,27 +155,28 @@ export default function RoadmapDetail() {
                                             <span className={`absolute left-2 top-5 z-10 h-3.5 w-3.5 border ${day.completed ? 'bg-forest border-forest' : isToday ? 'bg-signal border-signal' : 'bg-paper border-ink/30'}`} aria-hidden="true">
                                                 {day.completed && <span className="block text-[9px] leading-3 text-paper text-center">✓</span>}
                                             </span>
-                                            <article className={`card-hard p-4 sm:p-5 ${day.completed ? 'opacity-65' : ''} ${isToday ? 'border-signal shadow-hard-signal' : ''}`}>
+                                            <article className={`card-hard p-4 sm:p-5 ${day.completed ? 'opacity-65' : ''} ${isToday ? 'border-accent ring-1 ring-accent/30' : ''}`}>
                                                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                                                     <div className="min-w-0">
                                                         <div className="flex flex-wrap items-center gap-2 mb-2">
-                                                            <span className="tag-pill">DAY {day.dayNumber}</span>
-                                                            {isToday && <span className="tag-pill bg-signal border border-signal">TODAY</span>}
-                                                            {isBehind && <span className="font-mono text-[10px] uppercase text-ink-faint">Behind</span>}
+                                                            <StatusBadge tone={day.completed ? 'success' : 'neutral'} label={`DAY ${day.dayNumber}`} />
+                                                            {day.completed && <StatusBadge tone="success" label="✓ Completed" />}
+                                                            {isToday && <StatusBadge tone="accent" label="TODAY" />}
+                                                            {isBehind && <StatusBadge tone="warning" label="Behind schedule" />}
                                                             <span className="font-mono text-xs text-ink-faint">{formatDay(day.date)}</span>
                                                         </div>
                                                         <h2 className={`font-display text-xl font-semibold break-words ${day.completed ? 'line-through text-ink-faint' : 'text-ink'}`}>{day.topic}</h2>
                                                         {day.description && <p className="font-body text-sm text-ink-muted mt-2 whitespace-pre-wrap break-words">{day.description}</p>}
                                                         <p className="font-mono text-xs text-ink-faint mt-3">{day.estimatedHours}h estimated</p>
                                                     </div>
-                                                    <label className="inline-flex flex-shrink-0 items-center gap-2 font-body text-sm text-ink cursor-pointer">
+                                                    <label className="inline-flex flex-shrink-0 cursor-pointer items-center gap-2 font-body text-sm text-text">
                                                         <input
                                                             type="checkbox"
                                                             checked={!!day.completed}
                                                             disabled={pendingDay === day.dayNumber}
                                                             onChange={() => updateDay(day.dayNumber)}
                                                             aria-label={`${day.completed ? 'Mark incomplete' : 'Mark complete'}: ${day.topic}`}
-                                                            className="h-4 w-4 accent-forest"
+                                                            className="h-4 w-4 accent-mint"
                                                         />
                                                         {pendingDay === day.dayNumber ? 'Updating…' : day.completed ? 'Completed' : 'Complete'}
                                                     </label>
@@ -216,7 +225,7 @@ export default function RoadmapDetail() {
                                                             <p className="font-body text-sm text-signal mb-3" role="alert">{notesErrors[day.dayNumber]}</p>
                                                         )}
                                                         {day.notes && (
-                                                            <details open className="card-hard p-3 sm:p-4">
+                                                            <details open className="card-hard rounded-xl p-3 sm:p-4">
                                                                 <summary className="cursor-pointer font-body text-sm font-medium text-ink">Revision notes</summary>
                                                                 <div className="space-y-4 mt-4">
                                                                     <div>
@@ -259,12 +268,13 @@ export default function RoadmapDetail() {
                         )}
                     </>
                 ) : (
-                    <div className="card-hard p-6" role="alert">
-                        <p className="font-body text-sm text-ink-muted">Roadmap not found.</p>
-                        <Link to="/roadmaps" className="btn-secondary mt-4">Back to roadmaps</Link>
+                    <div role="alert">
+                        <Card className="p-6">
+                            <p className="font-body text-sm text-text-muted">Roadmap not found.</p>
+                            <Link to="/roadmaps" className="btn-secondary mt-4">Back to roadmaps</Link>
+                        </Card>
                     </div>
                 )}
-            </div>
         </div>
     );
 }

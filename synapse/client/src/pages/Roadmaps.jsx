@@ -4,6 +4,12 @@ import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 import CertificationBanner from '../components/roadmaps/CertificationBanner.jsx';
 import RoadmapForm from '../components/roadmaps/RoadmapForm.jsx';
+import Card from '../components/ui/Card.jsx';
+import ErrorState from '../components/ui/ErrorState.jsx';
+import PageHeader from '../components/ui/PageHeader.jsx';
+import ProgressBar from '../components/ui/ProgressBar.jsx';
+import Skeleton from '../components/ui/Skeleton.jsx';
+import StatusBadge from '../components/ui/StatusBadge.jsx';
 import {
     formatDay,
     LEVEL_LABELS,
@@ -100,15 +106,11 @@ export default function Roadmaps() {
     };
 
     return (
-        <div className="min-h-screen bg-paper">
-            <div className="mx-auto w-full max-w-5xl">
-                <header className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-                    <div>
-                        <p className="font-mono text-xs tracking-widest uppercase text-signal mb-2">Build a learning path</p>
-                        <h1 className="font-display text-4xl sm:text-5xl font-bold text-ink">Roadmaps</h1>
-                        <p className="font-body text-ink-muted mt-2">A focused plan, shaped around your goal and schedule.</p>
-                    </div>
-                    {!preview && (
+        <div className="mx-auto w-full max-w-5xl">
+                <PageHeader
+                    title="Roadmaps"
+                    subtitle="AI-generated paths to a skill, with daily tasks and progress."
+                    actions={!preview && (
                         <button
                             type="button"
                             onClick={() => {
@@ -120,7 +122,7 @@ export default function Roadmaps() {
                             {isCreating ? 'Close form' : 'New roadmap'}
                         </button>
                     )}
-                </header>
+                />
 
                 {actionError && (
                     <div className="mb-6 px-4 py-3 bg-signal/10 border border-signal/30 text-signal font-body text-sm" role="alert" aria-live="polite">
@@ -129,7 +131,7 @@ export default function Roadmaps() {
                 )}
 
                 {isCreating && !preview && (
-                    <section className="card-hard p-4 sm:p-6 mb-8" aria-labelledby="roadmap-form-heading">
+                    <Card className="mb-8 p-4 sm:p-6">
                         <p className="section-label mb-1">Start with your goal</p>
                         <h2 id="roadmap-form-heading" className="font-display text-xl font-semibold text-ink mb-5">Plan your learning</h2>
                         <RoadmapForm
@@ -140,21 +142,24 @@ export default function Roadmaps() {
                             }}
                             isSubmitting={isGenerating}
                         />
-                    </section>
+                    </Card>
                 )}
 
                 {preview && (
-                    <section className="card-hard p-4 sm:p-6 mb-10 space-y-5" aria-labelledby="roadmap-preview-heading">
-                        <div className="border border-signal/40 bg-signal/5 px-4 py-3">
-                            <p className="font-mono text-xs uppercase text-signal">AI-generated preview · not saved yet</p>
-                            <p className="font-body text-sm text-ink-muted mt-1">Review the plan before adding it to your roadmaps.</p>
+                    <Card className="mb-10 space-y-5 p-4 sm:p-6">
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/25 bg-accent-soft px-4 py-3">
+                            <div>
+                                <p className="font-mono text-xs uppercase text-accent">AI-generated preview · not saved yet</p>
+                                <p className="mt-1 font-body text-sm text-text-muted">Review the plan before adding it to your roadmaps.</p>
+                            </div>
+                            <StatusBadge tone="accent" label="Preview" />
                         </div>
                         <div>
                             <p className="section-label mb-1">Your plan</p>
                             <h2 id="roadmap-preview-heading" className="font-display text-2xl sm:text-3xl font-semibold text-ink break-words">{preview.goal}</h2>
                             <div className="flex flex-wrap gap-2 mt-3">
-                                <span className="tag-pill-outline">{LEVEL_LABELS[preview.currentLevel]}</span>
-                                <span className="tag-pill-outline">{PATH_LABELS[preview.pathType]}</span>
+                                <StatusBadge tone="neutral" label={LEVEL_LABELS[preview.currentLevel]} />
+                                <StatusBadge tone="accent" label={PATH_LABELS[preview.pathType]} />
                                 <span className="tag-pill-outline">{preview.hoursPerDay}h per day</span>
                                 <span className="tag-pill-outline">{preview.durationDays} days</span>
                             </div>
@@ -196,7 +201,7 @@ export default function Roadmaps() {
                                 Discard
                             </button>
                         </div>
-                    </section>
+                    </Card>
                 )}
 
                 <section aria-labelledby="saved-roadmaps-heading">
@@ -205,14 +210,17 @@ export default function Roadmaps() {
                         <h2 id="saved-roadmaps-heading" className="font-display text-2xl font-semibold text-ink">Saved roadmaps</h2>
                     </div>
                     {isLoading ? (
-                        <div className="card-hard p-6 font-mono text-xs text-ink-faint" role="status">Loading roadmaps…</div>
-                    ) : loadError ? (
-                        <div className="card-hard p-6" role="alert">
-                            <p className="font-body text-sm text-signal">{loadError}</p>
-                            <button type="button" onClick={loadRoadmaps} className="btn-secondary mt-4">Try again</button>
+                        <div role="status" aria-label="Loading roadmaps">
+                            <Card className="space-y-4 p-6">
+                                <Skeleton className="h-5 w-40" />
+                                <Skeleton className="h-4 w-3/4" />
+                                <Skeleton className="h-2 w-full" />
+                            </Card>
                         </div>
+                    ) : loadError ? (
+                        <ErrorState message={loadError} onRetry={loadRoadmaps} />
                     ) : roadmaps.length === 0 ? (
-                        <div className="card-hard p-6 sm:p-8 text-center">
+                        <Card className="p-6 text-center sm:p-8">
                             <h3 className="font-display text-xl font-semibold text-ink">No saved roadmaps yet</h3>
                             <p className="font-body text-sm text-ink-muted mt-2">Create a plan to turn your goal into manageable daily steps.</p>
                             {!preview && (
@@ -220,18 +228,21 @@ export default function Roadmaps() {
                                     Create your first roadmap
                                 </button>
                             )}
-                        </div>
+                        </Card>
                     ) : (
                         <div className="space-y-4">
                             {roadmaps.map((roadmap) => (
-                                <article key={roadmap._id} className="card-hard p-4 sm:p-5">
+                                <Card key={roadmap._id} className="space-y-4 p-4 sm:p-5">
                                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                         <div className="min-w-0">
                                             <h3 className="font-display text-xl font-semibold text-ink break-words">{roadmap.goal}</h3>
                                             <div className="flex flex-wrap gap-2 mt-3">
-                                                <span className="tag-pill-outline">{LEVEL_LABELS[roadmap.currentLevel]}</span>
-                                                <span className="tag-pill-outline">{PATH_LABELS[roadmap.pathType]}</span>
-                                                <span className={roadmap.status === 'completed' ? 'tag-pill-outline' : 'tag-pill'}>{roadmapStatusLabel(roadmap.status)}</span>
+                                                <StatusBadge tone="neutral" label={LEVEL_LABELS[roadmap.currentLevel]} />
+                                                <StatusBadge tone="accent" label={PATH_LABELS[roadmap.pathType]} />
+                                                <StatusBadge
+                                                    tone={roadmap.status === 'completed' ? 'success' : roadmap.status === 'active' ? 'accent' : 'neutral'}
+                                                    label={roadmapStatusLabel(roadmap.status)}
+                                                />
                                             </div>
                                             <p className="font-mono text-xs text-ink-faint mt-3">{roadmap.hoursPerDay}h per day · {roadmap.durationDays} days</p>
                                         </div>
@@ -250,21 +261,15 @@ export default function Roadmaps() {
                                             )}
                                         </div>
                                     </div>
-                                    <div className="mt-4">
-                                        <div className="flex items-center justify-between gap-3 font-mono text-xs text-ink-faint mb-2">
-                                            <span>{roadmap.progress?.completionPercent || 0}% complete</span>
-                                            <span>{roadmap.progress?.currentStreak || 0} day streak</span>
-                                        </div>
-                                        <div className="h-2 bg-ink/10 overflow-hidden" role="progressbar" aria-valuenow={roadmap.progress?.completionPercent || 0} aria-valuemin="0" aria-valuemax="100" aria-label={`${roadmap.goal} progress`}>
-                                            <div className="h-full bg-forest transition-all" style={{ width: `${roadmap.progress?.completionPercent || 0}%` }} />
-                                        </div>
+                                    <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                                        <ProgressBar value={roadmap.progress?.completionPercent || 0} label="Progress" />
+                                        <StatusBadge tone="neutral" label={`${roadmap.progress?.currentStreak || 0} day streak`} />
                                     </div>
-                                </article>
+                                </Card>
                             ))}
                         </div>
                     )}
                 </section>
-            </div>
         </div>
     );
 }

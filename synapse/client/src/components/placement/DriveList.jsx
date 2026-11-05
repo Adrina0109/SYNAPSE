@@ -1,4 +1,5 @@
 import { formatDayKey } from '../planner/plannerHelpers.js';
+import StatusBadge from '../ui/StatusBadge.jsx';
 
 const istDayKey = (date) => new Date(date).toLocaleDateString('en-CA', {
     timeZone: 'Asia/Kolkata',
@@ -23,9 +24,10 @@ export default function DriveList({ drives }) {
                             <p className="mt-1 break-words font-body text-sm text-ink-muted">{drive.role}</p>
                         </div>
                         {drive.eligibility && (
-                            <span className={`tag-pill shrink-0 ${drive.eligibility.eligible ? 'bg-forest text-paper' : 'bg-ink/10 text-ink-muted'}`}>
-                                {drive.eligibility.eligible ? 'ELIGIBLE' : 'NOT ELIGIBLE'}
-                            </span>
+                            <StatusBadge
+                                tone={drive.eligibility.eligible ? 'success' : 'danger'}
+                                label={drive.eligibility.eligible ? 'ELIGIBLE' : 'NOT ELIGIBLE'}
+                            />
                         )}
                     </div>
                     <p className="font-mono text-xs text-ink-faint">{formatDayKey(istDayKey(drive.date))}</p>
