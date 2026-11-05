@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
-import ThemeToggle from '../ThemeToggle.jsx';
 import { ProfileIcon } from './navIcons.jsx';
 
 const BellIcon = () => (
@@ -70,7 +69,6 @@ export default function TopBar({ title }) {
                         </div>
                     )}
                 </div>
-                <div className="hidden sm:block"><ThemeToggle /></div>
                 <div className="relative">
                     <button
                         ref={menuButtonRef}
