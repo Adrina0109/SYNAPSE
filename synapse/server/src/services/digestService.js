@@ -11,6 +11,16 @@ const digestResponseSchema = z.object({
 }).strict();
 
 const digestCache = new Map();
+const digestVersions = new Map();
+
+export const invalidateDigest = (userId) => {
+    const userKey = String(userId);
+    const prefix = `${userKey}:`;
+    digestVersions.set(userKey, (digestVersions.get(userKey) ?? 0) + 1);
+    for (const key of digestCache.keys()) {
+        if (key.startsWith(prefix)) digestCache.delete(key);
+    }
+};
 
 const logDigestFallback = (error) => {
     const status = error?.statusCode ?? error?.code ?? 'unknown';
@@ -55,9 +65,11 @@ const buildRuleBasedDigest = ({ tasks, roadmaps, conflicts, readiness, now }) =>
 };
 
 export const buildDigest = async (userId, now = new Date()) => {
+    const userKey = String(userId);
     const todayKey = istDayKey(now);
-    const cacheKey = `${String(userId)}:${todayKey}`;
+    const cacheKey = `${userKey}:${todayKey}`;
     if (digestCache.has(cacheKey)) return digestCache.get(cacheKey);
+    const version = digestVersions.get(userKey) ?? 0;
 
     for (const key of digestCache.keys()) {
         if (!key.endsWith(`:${todayKey}`)) digestCache.delete(key);
@@ -85,6 +97,9 @@ export const buildDigest = async (userId, now = new Date()) => {
         logDigestFallback(error);
     }
 
+    if (version !== (digestVersions.get(userKey) ?? 0)) {
+        return buildDigest(userId, now);
+    }
     digestCache.set(cacheKey, lines);
     return lines;
 };

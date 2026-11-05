@@ -22,6 +22,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import errorHandler from './middleware/errorHandler.js';
 
 const app = express();
+app.disable('etag');
 
 // Security middleware
 app.use(helmet({

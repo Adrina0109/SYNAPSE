@@ -23,6 +23,11 @@ const announcementSchema = new mongoose.Schema(
             enum: ['all', 'assigned'],
             required: true,
         },
+        recipientMode: {
+            type: String,
+            enum: ['all', 'selected'],
+            default: 'all',
+        },
         targetMentorId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User',

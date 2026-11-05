@@ -1,9 +1,15 @@
 import Task from '../models/Task.js';
 import User from '../models/User.js';
 import Roadmap from '../models/Roadmap.js';
-import { getAssignedStudentIds } from '../utils/mentorHelpers.js';
+import {
+    getAssignedStudentIds,
+    getAssignedStudents,
+    resolveRecipientStudentIds,
+} from '../utils/mentorHelpers.js';
 import { getReadiness } from '../services/readinessService.js';
 import { computeRisk, summarizeStudent } from '../services/riskService.js';
+import { invalidateDigest } from '../services/digestService.js';
+import { getTaskStats, getTaskStatsByUser } from '../services/taskStatsService.js';
 import {
     mentorBroadcastSchema,
     studentIdParamsSchema,
@@ -44,57 +50,44 @@ export const getStudents = async (req, res, next) => {
         const students = await getStudentsForRequest(req);
         const studentIds = students.map((student) => student._id);
         const now = new Date();
-        const taskCounts = studentIds.length === 0
-            ? []
-            : await Task.aggregate([
-                { $match: { user: { $in: studentIds } } },
-                {
-                    $group: {
-                        _id: '$user',
-                        pendingTaskCount: {
-                            $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] },
-                        },
-                        overdueTaskCount: {
-                            $sum: {
-                                $cond: [
-                                    {
-                                        $and: [
-                                            { $ne: ['$status', 'completed'] },
-                                            { $ne: ['$deadline', null] },
-                                            { $lt: ['$deadline', now] },
-                                        ],
-                                    },
-                                    1,
-                                    0,
-                                ],
-                            },
-                        },
-                    },
-                },
-            ]);
-        const taskCountsByStudent = new Map(
-            taskCounts.map((counts) => [String(counts._id), counts])
-        );
+        const taskStatsByStudent = await getTaskStatsByUser(studentIds, now);
 
         const result = await Promise.all(students.map(async (student) => {
-            const counts = taskCountsByStudent.get(String(student._id));
+            const taskStats = taskStatsByStudent.get(String(student._id));
             const [risk, readiness] = await Promise.all([
                 computeRisk(student._id, now),
                 getReadiness(student._id, now),
             ]);
             return {
                 ...student,
-                pendingTaskCount: counts?.pendingTaskCount || 0,
-                overdueTaskCount: counts?.overdueTaskCount || 0,
+                pendingTaskCount: taskStats?.pending ?? 0,
+                overdueTaskCount: taskStats?.overdue ?? 0,
+                completedTaskCount: taskStats?.completed ?? 0,
+                completionRate: taskStats?.completionRate ?? 0,
                 risk,
                 readiness,
             };
+
         }));
 
         res.status(200).json({
             success: true,
             message: 'Students retrieved successfully',
             students: result,
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// GET /api/mentor/recipients
+export const getRecipients = async (req, res, next) => {
+    try {
+        const students = await getAssignedStudents(req.user.id);
+        res.status(200).json({
+            success: true,
+            message: 'Announcement recipients retrieved successfully',
+            students,
         });
     } catch (err) {
         next(err);
@@ -144,21 +137,8 @@ export const getStudent = async (req, res, next) => {
 export const getMentorAnalytics = async (req, res, next) => {
     try {
         const studentIds = await getAssignedStudentIds(req.user.id);
-        const [taskTotals, riskAndReadiness] = await Promise.all([
-            studentIds.length === 0
-                ? []
-                : Task.aggregate([
-                    { $match: { user: { $in: studentIds } } },
-                    {
-                        $group: {
-                            _id: null,
-                            total: { $sum: 1 },
-                            completed: {
-                                $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] },
-                            },
-                        },
-                    },
-                ]),
+        const [taskStats, riskAndReadiness] = await Promise.all([
+            getTaskStats(studentIds),
             Promise.all(studentIds.map(async (studentId) => {
                 const [risk, readiness] = await Promise.all([
                     computeRisk(studentId),
@@ -174,11 +154,9 @@ export const getMentorAnalytics = async (req, res, next) => {
             riskDistribution[risk.riskLevel] += 1;
             readinessTotal += readiness.score;
         });
-        const totals = taskTotals[0] ?? { total: 0, completed: 0 };
         const analytics = {
-            taskCompletionRate: totals.total === 0
-                ? 0
-                : Math.round((totals.completed / totals.total) * 10000) / 100,
+            taskCompletionRate: taskStats.completionRate,
+            taskStats,
             riskDistribution,
             averageReadiness: riskAndReadiness.length === 0
                 ? 0
@@ -224,18 +202,28 @@ export const broadcastTask = async (req, res, next) => {
         const parsed = mentorBroadcastSchema.safeParse(req.body);
         if (!parsed.success) return respondWithValidationErrors(res, parsed.error.errors);
 
-        const studentIds = await getAssignedStudentIds(req.user.id);
-        const tasks = studentIds.length === 0
-            ? []
-            : await Task.insertMany(studentIds.map((studentId) => ({
-                ...parsed.data,
-                user: studentId,
-                source: 'mentor',
-            })));
+        const studentIds = await resolveRecipientStudentIds(
+            req.user.id,
+            req.userRole,
+            parsed.data.recipientMode,
+            parsed.data.studentIds
+        );
+        const taskData = { ...parsed.data };
+        const recipientMode = taskData.recipientMode;
+        delete taskData.recipientMode;
+        delete taskData.studentIds;
+        const tasks = await Task.insertMany(studentIds.map((studentId) => ({
+            ...taskData,
+            user: studentId,
+            source: 'mentor',
+        })));
+        studentIds.forEach((studentId) => invalidateDigest(studentId));
         res.status(201).json({
             success: true,
             message: 'Task broadcast successfully',
             count: tasks.length,
+            recipientMode,
+            recipientCount: tasks.length,
         });
     } catch (err) {
         next(err);

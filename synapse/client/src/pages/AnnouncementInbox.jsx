@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import Navbar from '../components/Navbar.jsx';
+import { useTaskStats } from '../context/TaskStatsContext.jsx';
 import api from '../lib/api.js';
 
 const formatDate = (date) => {
@@ -10,6 +11,7 @@ const formatDate = (date) => {
 };
 
 export default function AnnouncementInbox() {
+    const { notifyTasksChanged } = useTaskStats();
     const [announcements, setAnnouncements] = useState([]);
     const [extractedTasks, setExtractedTasks] = useState({});
     const [loading, setLoading] = useState(true);
@@ -56,6 +58,7 @@ export default function AnnouncementInbox() {
         setFeedback('');
         try {
             await api.post(`/announcements/${announcementId}/confirm`, { tasks });
+            notifyTasksChanged();
             setAnnouncements((current) => current.filter((item) => item.announcementId !== announcementId));
             setExtractedTasks((current) => {
                 const next = { ...current };

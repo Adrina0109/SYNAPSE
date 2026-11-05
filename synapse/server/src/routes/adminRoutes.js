@@ -8,13 +8,14 @@ import {
     unassignMentor,
 } from '../controllers/adminController.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import noStore from '../middleware/noStore.js';
 
 const router = express.Router();
 
 router.use(requireAuth, requireRole('admin'));
 
 router.get('/users', getUsers);
-router.get('/stats', getStats);
+router.get('/stats', noStore, getStats);
 router.get('/mentors', getMentors);
 router.patch('/assign', assignMentor);
 router.patch('/unassign', unassignMentor);

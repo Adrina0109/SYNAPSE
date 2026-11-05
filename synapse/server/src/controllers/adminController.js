@@ -8,6 +8,7 @@ import {
     unassignMentorSchema,
 } from '../validators/adminValidators.js';
 import { getAssignedStudentIds } from '../utils/mentorHelpers.js';
+import { getTaskStats } from '../services/taskStatsService.js';
 
 const validationErrors = (issues) => {
     const errors = {};
@@ -183,7 +184,7 @@ export const deleteUser = async (req, res, next) => {
 
 export const getStats = async (req, res, next) => {
     try {
-        const [roleCounts, documentCount, announcementCount, unassignedStudentCount] = await Promise.all([
+        const [roleCounts, documentCount, announcementCount, unassignedStudentCount, studentIds] = await Promise.all([
             User.aggregate([
                 { $group: { _id: '$role', count: { $sum: 1 } } },
             ]),
@@ -196,7 +197,9 @@ export const getStats = async (req, res, next) => {
                     { mentors: { $size: 0 } },
                 ],
             }),
+            User.find({ role: 'student' }).select('_id').lean().then((users) => users.map(({ _id }) => _id)),
         ]);
+        const taskStats = await getTaskStats(studentIds);
         const usersByRole = { student: 0, mentor: 0, admin: 0 };
         roleCounts.forEach(({ _id, count }) => {
             if (Object.prototype.hasOwnProperty.call(usersByRole, _id)) {
@@ -212,6 +215,7 @@ export const getStats = async (req, res, next) => {
                 documentCount,
                 announcementCount,
                 unassignedStudentCount,
+                taskStats,
             },
         });
     } catch (err) {

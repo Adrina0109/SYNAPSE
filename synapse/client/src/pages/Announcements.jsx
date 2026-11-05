@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Navbar from '../components/Navbar.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
+import RecipientSelector from '../components/RecipientSelector.jsx';
 
 const SOURCES = [
     { value: 'official_circular', label: 'Official circular' },
@@ -22,9 +23,11 @@ export default function Announcements() {
     const isAdmin = user?.role === 'admin';
     const [rawText, setRawText] = useState('');
     const [sourceType, setSourceType] = useState('other');
-    const [audience, setAudience] = useState('all');
-    const [targetMentorId, setTargetMentorId] = useState('');
-    const [mentors, setMentors] = useState([]);
+    const [recipients, setRecipients] = useState([]);
+    const [recipientsLoading, setRecipientsLoading] = useState(true);
+    const [recipientsError, setRecipientsError] = useState('');
+    const [recipientMode, setRecipientMode] = useState('all');
+    const [selectedStudentIds, setSelectedStudentIds] = useState([]);
     const [announcements, setAnnouncements] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isSending, setIsSending] = useState(false);
@@ -45,24 +48,33 @@ export default function Announcements() {
         }
     }, []);
 
-    useEffect(() => {
-        loadAnnouncements();
-    }, [loadAnnouncements]);
+    const loadRecipients = useCallback(async () => {
+        setRecipientsLoading(true);
+        setRecipientsError('');
+        try {
+            const { data } = await api.get('/mentor/recipients');
+            setRecipients(data.students || []);
+            setSelectedStudentIds((current) => current.filter(
+                (id) => (data.students || []).some((student) => student._id === id)
+            ));
+        } catch (requestError) {
+            setRecipientsError(requestError.response?.data?.message || 'Could not load selectable students.');
+        } finally {
+            setRecipientsLoading(false);
+        }
+    }, []);
 
     useEffect(() => {
-        if (!isAdmin) return;
-        api.get('/admin/mentors')
-            .then(({ data }) => setMentors(data.mentors || []))
-            .catch((requestError) => {
-                setError(requestError.response?.data?.message || 'Could not load mentors.');
-            });
-    }, [isAdmin]);
+        loadAnnouncements();
+        loadRecipients();
+    }, [loadAnnouncements, loadRecipients]);
 
     const sendAnnouncement = async (event) => {
         event.preventDefault();
         if (!rawText.trim() || isSending) return;
-        if (isAdmin && audience === 'assigned' && !targetMentorId) {
-            setError('Choose a mentor to target their assigned students.');
+        if (recipientsError || recipientsLoading || recipients.length === 0) return;
+        if (recipientMode === 'selected' && selectedStudentIds.length === 0) {
+            setError('Select at least one student.');
             return;
         }
 
@@ -73,19 +85,27 @@ export default function Announcements() {
             const payload = {
                 rawText,
                 sourceType,
-                audience: isAdmin ? audience : 'assigned',
-                ...(isAdmin && audience === 'assigned' ? { targetMentorId } : {}),
+                recipientMode,
+                ...(recipientMode === 'selected' ? { studentIds: selectedStudentIds } : {}),
             };
             const { data } = await api.post('/announcements', payload);
             setRawText('');
             setFeedback(`Sent to ${data.announcement.recipientCount} ${data.announcement.recipientCount === 1 ? 'student' : 'students'}.`);
             await loadAnnouncements();
         } catch (requestError) {
-            setError(requestError.response?.data?.message || 'Could not send this announcement.');
+            if (requestError.response?.status === 403) {
+                setError('You can only send to students assigned to you. Refresh the student list and try again.');
+            } else if (requestError.response?.status === 400) {
+                setError(requestError.response?.data?.message || 'Check the selected recipients and announcement text.');
+            } else {
+                setError(requestError.response?.data?.message || 'Could not send this announcement.');
+            }
         } finally {
             setIsSending(false);
         }
     };
+
+    const recipientCount = recipientMode === 'all' ? recipients.length : selectedStudentIds.length;
 
     const deleteAnnouncement = async (announcementId) => {
         if (!window.confirm('Delete this announcement and its student inbox notifications?')) return;
@@ -112,7 +132,7 @@ export default function Announcements() {
                     <h1 className="font-display text-4xl font-bold text-ink sm:text-5xl">Announcements</h1>
                     <p className="mt-2 font-body text-ink-muted">
                         {isAdmin
-                            ? 'Send to all students or to a mentor’s assigned students.'
+                            ? 'Choose all students or select specific recipients.'
                             : 'Announcements are delivered only to your assigned students.'}
                     </p>
                 </header>
@@ -142,41 +162,28 @@ export default function Announcements() {
                                 {SOURCES.map((source) => <option key={source.value} value={source.value}>{source.label}</option>)}
                             </select>
                         </div>
-                        {isAdmin && (
-                            <div>
-                                <label htmlFor="announcement-audience" className="mb-2 block font-body text-sm font-medium text-ink">Audience</label>
-                                <select
-                                    id="announcement-audience"
-                                    value={audience}
-                                    onChange={(event) => setAudience(event.target.value)}
-                                    className="input-base"
-                                >
-                                    <option value="all">All students</option>
-                                    <option value="assigned">Students assigned to a mentor</option>
-                                </select>
-                            </div>
-                        )}
-                        {isAdmin && audience === 'assigned' && (
-                            <div className="sm:col-span-2">
-                                <label htmlFor="target-mentor" className="mb-2 block font-body text-sm font-medium text-ink">Mentor</label>
-                                <select
-                                    id="target-mentor"
-                                    value={targetMentorId}
-                                    onChange={(event) => setTargetMentorId(event.target.value)}
-                                    className="input-base"
-                                    required
-                                >
-                                    <option value="">Choose a mentor</option>
-                                    {mentors.map((mentor) => (
-                                        <option key={mentor._id} value={mentor._id}>
-                                            {mentor.name} ({mentor.assignedStudentCount} assigned)
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                        )}
+                        <RecipientSelector
+                            recipients={recipients}
+                            loading={recipientsLoading}
+                            error={recipientsError}
+                            onRetry={loadRecipients}
+                            isAdmin={isAdmin}
+                            recipientMode={recipientMode}
+                            setRecipientMode={setRecipientMode}
+                            selectedStudentIds={selectedStudentIds}
+                            setSelectedStudentIds={setSelectedStudentIds}
+                        />
                     </div>
-                    <button type="submit" disabled={!rawText.trim() || isSending} className="btn-primary">
+                    {recipientCount > 0 && (
+                        <p className="font-body text-sm text-ink-muted" role="status">
+                            This will notify {recipientCount} {recipientCount === 1 ? 'student' : 'students'}.
+                        </p>
+                    )}
+                    <button
+                        type="submit"
+                        disabled={!rawText.trim() || isSending || recipientsLoading || Boolean(recipientsError) || recipients.length === 0 || (recipientMode === 'selected' && selectedStudentIds.length === 0)}
+                        className="btn-primary"
+                    >
                         {isSending ? 'Sending...' : 'Send announcement'}
                     </button>
                 </form>
@@ -195,7 +202,7 @@ export default function Announcements() {
                             {announcements.map((announcement) => (
                                 <article key={announcement._id} className="card-hard p-4 sm:p-5">
                                     <div className="mb-3 flex flex-wrap items-center gap-2">
-                                        <span className="tag-pill-outline">{announcement.audience === 'all' ? 'All students' : 'Assigned students'}</span>
+                                        <span className="tag-pill-outline">{announcement.recipientMode === 'selected' ? 'Selected students' : 'All students'}</span>
                                         <span className="tag-pill-outline">{announcement.recipientCount} recipients</span>
                                         <time className="ml-auto font-mono text-xs text-ink-faint">{formatDate(announcement.createdAt)}</time>
                                     </div>
