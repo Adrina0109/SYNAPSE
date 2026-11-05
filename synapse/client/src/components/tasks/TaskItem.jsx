@@ -24,17 +24,6 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete, onTaskChang
 
     return (
         <>
-            <article className={`card-hard p-4 sm:p-5 ${task.status === 'completed' ? 'opacity-65' : ''}`}>
-                <div className="grid min-w-0 gap-4 sm:grid-cols-[auto_minmax(0,1fr)_auto_auto] sm:items-center">
-                    <input
-                        type="checkbox"
-                        checked={task.status === 'completed'}
-                        onChange={() => onToggle(task)}
-                        aria-label={`${task.status === 'completed' ? 'Reopen' : 'Complete'} ${task.title}`}
-                        className="h-4 w-4 shrink-0 accent-accent sm:row-span-2"
-                    />
-                    <div className="min-w-0">
-                        <h3 className={`break-words font-display text-base font-semibold ${task.status === 'completed' ? 'line-through text-text-faint' : 'text-text'}`}>
         <article className={`card-hard p-4 sm:p-5 ${task.status === 'completed' ? 'opacity-65' : ''}`}>
             <div className="flex items-start gap-3 sm:gap-4">
                 <input
@@ -91,6 +80,7 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete, onTaskChang
                         </button>
                     </div>
                 </div>
+            </div>
             </article>
             <ConfirmDialog
                 open={confirmingDelete}

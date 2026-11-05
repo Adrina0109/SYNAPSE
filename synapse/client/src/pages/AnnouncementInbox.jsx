@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from 'react';
-import Navbar from '../components/Navbar.jsx';
 import { useTaskStats } from '../context/TaskStatsContext.jsx';
 import api from '../lib/api.js';
 import PageHeader from '../components/ui/PageHeader.jsx';

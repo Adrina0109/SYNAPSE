@@ -124,25 +124,13 @@ export default function Announcements() {
     };
 
     return (
-        <div className="min-h-screen bg-paper">
-            <div className="mx-auto w-full max-w-5xl">
-                <PageHeader
-                    title="Announcements"
-                    subtitle={isAdmin
-                        ? 'Send to all students or to a mentor’s assigned students.'
-                        : 'Announcements are delivered only to your assigned students.'}
-                />
-            <Navbar />
-            <main className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
-                <header className="mb-8">
-                    <p className="section-label mb-2">Share with students</p>
-                    <h1 className="font-display text-4xl font-bold text-ink sm:text-5xl">Announcements</h1>
-                    <p className="mt-2 font-body text-ink-muted">
-                        {isAdmin
-                            ? 'Choose all students or select specific recipients.'
-                            : 'Announcements are delivered only to your assigned students.'}
-                    </p>
-                </header>
+        <div className="mx-auto min-w-0 w-full max-w-5xl">
+            <PageHeader
+                title="Announcements"
+                subtitle={isAdmin
+                    ? 'Send to all students or to a mentor’s assigned students.'
+                    : 'Announcements are delivered only to your assigned students.'}
+            />
 
                 {feedback && <p className="mb-5 border border-forest/30 bg-forest/10 px-4 py-3 text-sm text-forest" role="status">{feedback}</p>}
                 {error && <p className="mb-5 border border-signal/30 bg-signal/10 px-4 py-3 text-sm text-signal" role="alert">{error}</p>}
@@ -229,7 +217,6 @@ export default function Announcements() {
                         </div>
                     )}
                 </section>
-            </div>
         </div>
     );
 }
