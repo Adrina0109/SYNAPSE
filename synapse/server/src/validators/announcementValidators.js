@@ -30,9 +30,11 @@ const confirmAnnouncementTaskSchema = z.object({
     estimatedHours: z.number().min(0).max(100).optional().default(1),
 });
 
-export const extractAnnouncementSchema = z.object({
+export const createAnnouncementSchema = z.object({
     rawText: z.string().trim().min(1).max(20000),
     sourceType: announcementSourceTypeSchema.optional().default('other'),
+    audience: z.enum(['all', 'assigned']).optional(),
+    targetMentorId: z.string().regex(/^[a-f\d]{24}$/i).optional(),
 }).strict();
 
 export const confirmAnnouncementSchema = z.object({

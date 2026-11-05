@@ -3,6 +3,7 @@ import {
     assignMentor,
     deleteUser,
     getMentors,
+    getStats,
     getUsers,
     unassignMentor,
 } from '../controllers/adminController.js';
@@ -13,6 +14,7 @@ const router = express.Router();
 router.use(requireAuth, requireRole('admin'));
 
 router.get('/users', getUsers);
+router.get('/stats', getStats);
 router.get('/mentors', getMentors);
 router.patch('/assign', assignMentor);
 router.patch('/unassign', unassignMentor);

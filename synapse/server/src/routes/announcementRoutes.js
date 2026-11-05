@@ -1,11 +1,15 @@
 import express from 'express';
 import rateLimit from 'express-rate-limit';
 import {
-    confirmAnnouncement,
-    extractAnnouncement,
-    getAnnouncements,
+    confirmAnnouncementTasks,
+    createAnnouncement,
+    deleteAnnouncement,
+    dismissAnnouncement,
+    extractAnnouncementTasks,
+    getAnnouncementInbox,
+    getSentAnnouncements,
 } from '../controllers/announcementController.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -23,8 +27,13 @@ const extractionLimiter = rateLimit({
 
 router.use(requireAuth);
 
-router.post('/extract', extractionLimiter, extractAnnouncement);
-router.post('/:id/confirm', confirmAnnouncement);
-router.get('/', getAnnouncements);
+router.post('/', requireRole('mentor', 'admin'), createAnnouncement);
+router.get('/sent', requireRole('mentor', 'admin'), getSentAnnouncements);
+router.delete('/:id', requireRole('mentor', 'admin'), deleteAnnouncement);
+
+router.get('/inbox', requireRole('student'), getAnnouncementInbox);
+router.post('/:id/extract', requireRole('student'), extractionLimiter, extractAnnouncementTasks);
+router.post('/:id/confirm', requireRole('student'), confirmAnnouncementTasks);
+router.post('/:id/dismiss', requireRole('student'), dismissAnnouncement);
 
 export default router;

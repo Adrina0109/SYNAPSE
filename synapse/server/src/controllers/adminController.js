@@ -1,4 +1,6 @@
 import User from '../models/User.js';
+import Document from '../models/Document.js';
+import Announcement from '../models/Announcement.js';
 import {
     adminIdParamsSchema,
     adminUsersQuerySchema,
@@ -174,6 +176,44 @@ export const deleteUser = async (req, res, next) => {
         }
 
         res.status(200).json({ success: true, message: 'User deleted successfully' });
+    } catch (err) {
+        next(err);
+    }
+};
+
+export const getStats = async (req, res, next) => {
+    try {
+        const [roleCounts, documentCount, announcementCount, unassignedStudentCount] = await Promise.all([
+            User.aggregate([
+                { $group: { _id: '$role', count: { $sum: 1 } } },
+            ]),
+            Document.countDocuments(),
+            Announcement.countDocuments(),
+            User.countDocuments({
+                role: 'student',
+                $or: [
+                    { mentors: { $exists: false } },
+                    { mentors: { $size: 0 } },
+                ],
+            }),
+        ]);
+        const usersByRole = { student: 0, mentor: 0, admin: 0 };
+        roleCounts.forEach(({ _id, count }) => {
+            if (Object.prototype.hasOwnProperty.call(usersByRole, _id)) {
+                usersByRole[_id] = count;
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Admin stats retrieved successfully',
+            stats: {
+                usersByRole,
+                documentCount,
+                announcementCount,
+                unassignedStudentCount,
+            },
+        });
     } catch (err) {
         next(err);
     }
