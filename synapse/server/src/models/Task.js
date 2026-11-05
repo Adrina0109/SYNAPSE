@@ -1,5 +1,13 @@
 import mongoose from 'mongoose';
 
+const workPlanEntrySchema = new mongoose.Schema(
+    {
+        date: { type: Date, required: true },
+        hours: { type: Number, required: true, min: 0 },
+    },
+    { _id: false }
+);
+
 const taskSchema = new mongoose.Schema(
     {
         user: {
@@ -56,6 +64,11 @@ const taskSchema = new mongoose.Schema(
             type: Number,
             min: 0,
             default: 1,
+        },
+        // Planner-saved schedule of when the student works on this task; empty means "use the default spread".
+        workPlan: {
+            type: [workPlanEntrySchema],
+            default: [],
         },
     },
     { timestamps: true }

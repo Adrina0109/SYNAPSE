@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Announcement from '../models/Announcement.js';
 import Task from '../models/Task.js';
+import { getConflictsForTasks } from '../services/capacityService.js';
 import { extractTasksFromText } from '../services/announcementService.js';
 import {
     announcementIdParamsSchema,
@@ -110,6 +111,9 @@ export const confirmAnnouncement = async (req, res, next) => {
             }
         });
 
+        const conflicts = createdTasks.length === 0
+            ? []
+            : await getConflictsForTasks(req.user.id, createdTasks.map((task) => task._id));
         res.status(200).json({
             success: true,
             message: 'Announcement confirmed and tasks added successfully',
@@ -118,6 +122,7 @@ export const confirmAnnouncement = async (req, res, next) => {
                 status: 'confirmed',
             },
             tasks: createdTasks,
+            conflicts,
         });
     } catch (err) {
         next(err);

@@ -130,11 +130,12 @@ export default function Announcements() {
                 priority: task.priority,
                 estimatedHours: Number(task.estimatedHours),
             }));
-            await api.post(`/announcements/${announcement._id}/confirm`, { tasks: payload });
+            const { data } = await api.post(`/announcements/${announcement._id}/confirm`, { tasks: payload });
             await loadHistory();
             navigate('/tasks', {
                 state: {
                     successMessage: `${payload.length} ${payload.length === 1 ? 'task was' : 'tasks were'} added to your tasks.`,
+                    conflicts: data.conflicts ?? [],
                 },
             });
         } catch (error) {

@@ -5,6 +5,7 @@ import api from '../lib/api.js';
 import TaskForm from '../components/tasks/TaskForm.jsx';
 import TaskItem from '../components/tasks/TaskItem.jsx';
 import { labelizeTaskValue } from '../components/tasks/taskHelpers.js';
+import ConflictBanner from '../components/planner/ConflictBanner.jsx';
 
 const CATEGORIES = ['assessment', 'assignment', 'placement', 'event', 'personal'];
 const STATUSES = [
@@ -25,6 +26,7 @@ export default function Tasks() {
     const [loadError, setLoadError] = useState('');
     const [actionError, setActionError] = useState('');
     const [feedback, setFeedback] = useState(location.state?.successMessage || '');
+    const [conflicts, setConflicts] = useState(location.state?.conflicts ?? []);
     const [isSaving, setIsSaving] = useState(false);
     const [editingTask, setEditingTask] = useState(null);
 
@@ -49,7 +51,7 @@ export default function Tasks() {
     }, [loadTasks]);
 
     useEffect(() => {
-        if (location.state?.successMessage) {
+        if (location.state?.successMessage || location.state?.conflicts) {
             navigate(location.pathname, { replace: true, state: null });
         }
     }, [location.pathname, location.state, navigate]);
@@ -65,11 +67,13 @@ export default function Tasks() {
         setFeedback('');
         try {
             if (editingTask) {
-                await api.patch(`/tasks/${editingTask._id}`, payload);
+                const { data } = await api.patch(`/tasks/${editingTask._id}`, payload);
                 setFeedback('Task updated successfully.');
+                setConflicts(data.conflicts ?? []);
             } else {
-                await api.post('/tasks', payload);
+                const { data } = await api.post('/tasks', payload);
                 setFeedback('Task added successfully.');
+                setConflicts(data.conflicts ?? []);
             }
             setEditingTask(null);
             await loadTasks();
@@ -186,6 +190,12 @@ export default function Tasks() {
                             </select>
                         </div>
                     </div>
+
+                    {conflicts.length > 0 && (
+                        <div className="mb-4">
+                            <ConflictBanner conflicts={conflicts} onDismiss={() => setConflicts([])} />
+                        </div>
+                    )}
 
                     {loadError && (
                         <div className="card-hard p-5 text-center" role="alert">
