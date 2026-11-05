@@ -12,6 +12,7 @@ import {
     UpcomingDeadlinesCard,
     WeekPlanCard,
 } from '../components/dashboard/DashboardCards.jsx';
+import { sortTasksByDeadline } from '../components/tasks/taskHelpers.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTaskStats } from '../context/TaskStatsContext.jsx';
 import api from '../lib/api.js';
