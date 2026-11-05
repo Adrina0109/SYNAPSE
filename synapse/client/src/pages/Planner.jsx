@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 import { dayOfMonth, formatDayKey, formatHours, LOAD_META, SEVERITY_LABEL, weekdayShort } from '../components/planner/plannerHelpers.js';
 import ReplanPanel from '../components/planner/ReplanPanel.jsx';
+import MonthCalendar from '../components/planner/MonthCalendar.jsx';
 
 const SummaryCard = ({ value, label }) => (
     <div className="card-hard min-w-0 p-4">
@@ -35,6 +36,7 @@ export default function Planner() {
     const [autoPreview] = useState(() => Boolean(location.state?.autoPreview));
     const [capacity, setCapacity] = useState(null);
     const [conflicts, setConflicts] = useState([]);
+    const [tasks, setTasks] = useState([]);
     const [selectedDate, setSelectedDate] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
@@ -43,13 +45,15 @@ export default function Planner() {
         setIsLoading(true);
         setLoadError('');
         try {
-            const [capacityResponse, conflictsResponse] = await Promise.all([
+            const [capacityResponse, conflictsResponse, tasksResponse] = await Promise.all([
                 api.get('/planner/capacity', { params: { days: 14 } }),
                 api.get('/planner/conflicts'),
+                api.get('/tasks'),
             ]);
             const nextCapacity = capacityResponse.data;
             setCapacity(nextCapacity);
             setConflicts(conflictsResponse.data.conflicts || []);
+            setTasks(tasksResponse.data.tasks || []);
             setSelectedDate((current) => (
                 nextCapacity.days?.some((day) => day.date === current)
                     ? current
@@ -273,6 +277,9 @@ export default function Planner() {
                         </section>
                         <div className="mt-8">
                             <ReplanPanel autoPreview={autoPreview} onApplied={reload} />
+                        </div>
+                        <div className="mt-8">
+                            <MonthCalendar tasks={tasks} />
                         </div>
                     </>
                 )}
