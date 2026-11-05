@@ -137,3 +137,70 @@
   border-radius: 1px;
   transition: width 0.3s ease, background-color 0.3s ease;
 }
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  body {
+    background: white !important;
+    font-size: 10pt;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .share-public-page {
+    min-height: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+
+  .share-public-page > div {
+    max-width: none !important;
+  }
+
+  .share-public-card,
+  .share-public-card .card-hard {
+    border-color: #d6d3cd !important;
+    box-shadow: none !important;
+  }
+
+  .share-public-card {
+    gap: 1rem !important;
+    padding: 0 !important;
+    break-inside: avoid;
+  }
+
+  .share-score-grid {
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.5fr) !important;
+    gap: 0.75rem !important;
+  }
+
+  .share-public-card [aria-label^="Readiness score"] {
+    width: 9rem !important;
+    height: 9rem !important;
+  }
+
+  .share-public-card .card-hard {
+    padding: 0.75rem !important;
+  }
+
+  .share-public-card h1 {
+    font-size: 1.5rem !important;
+  }
+
+  .share-public-card h2 {
+    font-size: 1rem !important;
+  }
+
+  .share-public-card p,
+  .share-public-card li,
+  .share-public-card dt,
+  .share-public-card dd {
+    font-size: 9pt !important;
+  }
+}

@@ -1,10 +1,10 @@
 import Roadmap from '../models/Roadmap.js';
 import User from '../models/User.js';
 import { getCatalogEntry } from '../data/certificationCatalog.js';
-import { certificationMessage, resolveCertification } from '../services/certificationService.js';
+import { certificationMessage } from '../services/certificationService.js';
 import {
+    buildRoadmapPreview,
     generateDayNotes as generateDayNotesService,
-    generateRoadmapDays,
 } from '../services/roadmapService.js';
 import { addDays, startOfISTDay } from '../utils/dateHelpers.js';
 import { serializeRoadmap } from '../utils/roadmapHelpers.js';
@@ -138,31 +138,13 @@ export const generateRoadmap = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'Authentication required. Please log in.' });
         }
 
-        const startDate = startOfISTDay(parsed.data.startDate || new Date());
-        const input = { ...parsed.data, startDate };
-        const { certification, alternatives } = await resolveCertification({
-            goal: input.goal,
-            pathType: input.pathType,
-            targetCertification: input.targetCertification,
-        });
-        const days = await generateRoadmapDays({ input, user, certification });
+        const { roadmap, certificationAlternatives } = await buildRoadmapPreview(parsed.data, user);
 
         res.status(200).json({
             success: true,
             message: 'Roadmap generated successfully. Review it before saving.',
-            roadmap: {
-                goal: input.goal,
-                currentLevel: input.currentLevel,
-                hoursPerDay: input.hoursPerDay,
-                durationDays: input.durationDays,
-                preferredResources: input.preferredResources,
-                pathType: input.pathType,
-                targetCertification: input.targetCertification || '',
-                startDate,
-                certification,
-                days,
-            },
-            certificationAlternatives: alternatives,
+            roadmap,
+            certificationAlternatives,
         });
     } catch (err) {
         next(err);
