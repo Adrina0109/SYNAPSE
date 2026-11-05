@@ -21,6 +21,7 @@ import RoadmapDetail from './pages/RoadmapDetail.jsx';
 import StudentDashboard from './pages/StudentDashboard.jsx';
 import MentorDashboard from './pages/MentorDashboard.jsx';
 import AdminDashboard from './pages/AdminDashboard.jsx';
+import Profile from './pages/Profile.jsx';
 
 export default function App() {
     return (
@@ -50,6 +51,14 @@ export default function App() {
                     element={
                         <RoleRoute role="student">
                             <StudentDashboard />
+                        </RoleRoute>
+                    }
+                />
+                <Route
+                    path="/profile"
+                    element={
+                        <RoleRoute role="student">
+                            <Profile />
                         </RoleRoute>
                     }
                 />
