@@ -9,6 +9,7 @@ import Onboarding from './pages/Onboarding.jsx';
 import Tasks from './pages/Tasks.jsx';
 import Planner from './pages/Planner.jsx';
 import Placement from './pages/Placement.jsx';
+import DrivesManage from './pages/DrivesManage.jsx';
 import Announcements from './pages/Announcements.jsx';
 import Assistant from './pages/Assistant.jsx';
 import Documents from './pages/Documents.jsx';
@@ -68,6 +69,14 @@ export default function App() {
                 element={
                     <RoleRoute role="student">
                         <Placement />
+                    </RoleRoute>
+                }
+            />
+            <Route
+                path="/placement/drives"
+                element={
+                    <RoleRoute role={['mentor', 'admin']}>
+                        <DrivesManage />
                     </RoleRoute>
                 }
             />

@@ -146,6 +146,7 @@ export default function AdminDashboard() {
                 <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-4">
                     <span className="hidden md:block font-body text-sm text-ink-muted">{user?.name}</span>
                     <Link to="/documents" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Documents</Link>
+                    <Link to="/placement/drives" className="btn-secondary text-xs sm:text-sm px-3 sm:px-4 py-2">Placement drives</Link>
                     <button onClick={handleLogout} className="btn-ghost text-sm">Sign out</button>
                 </div>
             </nav>
