@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
 import api from '../lib/api.js';
 import CertificationBanner from '../components/roadmaps/CertificationBanner.jsx';
@@ -14,6 +14,7 @@ import {
 export default function Roadmaps() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
     const [roadmaps, setRoadmaps] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [loadError, setLoadError] = useState('');
@@ -43,6 +44,16 @@ export default function Roadmaps() {
     useEffect(() => {
         loadRoadmaps();
     }, [loadRoadmaps]);
+
+    useEffect(() => {
+        if (location.state?.preview) {
+            setPreview(location.state.preview);
+            setPreviewAlternatives(location.state.certificationAlternatives || []);
+            setPreviewInputs(null);
+            setIsCreating(false);
+            navigate(location.pathname, { replace: true, state: null });
+        }
+    }, [location.pathname, location.state, navigate]);
 
     const generatePreview = async (values = previewInputs) => {
         if (!values || isGenerating) return;

@@ -6,6 +6,9 @@ import BreakdownBars from '../components/placement/BreakdownBars.jsx';
 import NextBestAction from '../components/placement/NextBestAction.jsx';
 import ScoreGauge from '../components/placement/ScoreGauge.jsx';
 import ScoreHistory from '../components/placement/ScoreHistory.jsx';
+import InterviewChecklist from '../components/placement/InterviewChecklist.jsx';
+import MockSessions from '../components/placement/MockSessions.jsx';
+import ResumeGap from '../components/placement/ResumeGap.jsx';
 
 const PageNav = ({ user, onSignOut }) => (
     <nav className="border-b border-ink/10 px-4 py-4 flex flex-wrap items-center justify-between gap-3 sm:px-6 lg:px-10">
@@ -27,6 +30,7 @@ export default function Placement() {
     const [readiness, setReadiness] = useState(null);
     const [history, setHistory] = useState(null);
     const [roadmaps, setRoadmaps] = useState([]);
+    const [checklist, setChecklist] = useState(null);
     const [selectedRoadmapId, setSelectedRoadmapId] = useState('');
     const [whatIf, setWhatIf] = useState(null);
     const [whatIfLoading, setWhatIfLoading] = useState(false);
@@ -38,16 +42,18 @@ export default function Placement() {
         setIsLoading(true);
         setLoadError('');
         try {
-            const [readinessResponse, historyResponse, roadmapsResponse] = await Promise.all([
+            const [readinessResponse, historyResponse, roadmapsResponse, checklistResponse] = await Promise.all([
                 api.get('/placement/readiness'),
                 api.get('/placement/readiness/history'),
                 api.get('/roadmaps'),
+                api.get('/placement/checklist'),
             ]);
             const availableRoadmaps = (roadmapsResponse.data.roadmaps || [])
                 .filter((roadmap) => ['active', 'completed'].includes(roadmap.status));
             setReadiness(readinessResponse.data.readiness);
             setHistory(historyResponse.data.history);
             setRoadmaps(availableRoadmaps);
+            setChecklist(checklistResponse.data.checklist);
             setSelectedRoadmapId((current) => (
                 availableRoadmaps.some((roadmap) => roadmap._id === current)
                     ? current
@@ -97,6 +103,33 @@ export default function Placement() {
     const handleSignOut = async () => {
         await logout();
         navigate('/');
+    };
+
+    const handleResumeRoadmapPreview = async (missingSkills) => {
+        const { data } = await api.post('/placement/resume-gap/to-roadmap', { missingSkills });
+        navigate('/roadmaps', {
+            state: {
+                preview: data.roadmap,
+                certificationAlternatives: data.certificationAlternatives,
+            },
+        });
+    };
+
+    const handleChecklistToggled = (updatedChecklist) => {
+        setChecklist((current) => {
+            if (!current) return current;
+            const tickedKeys = new Set((updatedChecklist.ticks || []).map((tick) => tick.key));
+            const updatedItems = new Map((updatedChecklist.items || []).map((item) => [item.key, item]));
+            return {
+                ...current,
+                ...updatedChecklist,
+                items: current.items.map((item) => ({
+                    ...item,
+                    ticked: updatedItems.get(item.key)?.ticked ?? tickedKeys.has(item.key),
+                })),
+                mockSessions: updatedChecklist.mockSessions ?? current.mockSessions,
+            };
+        });
     };
 
     const selectedRoadmap = useMemo(
@@ -186,6 +219,14 @@ export default function Placement() {
                                 </>
                             )}
                         </section>
+
+                        {checklist && (
+                            <div className="grid min-w-0 gap-6 lg:grid-cols-2">
+                                <InterviewChecklist checklist={checklist} onToggled={handleChecklistToggled} />
+                                <MockSessions sessions={checklist.mockSessions || []} />
+                            </div>
+                        )}
+                        <ResumeGap onRoadmapPreview={handleResumeRoadmapPreview} />
                     </div>
                 )}
             </main>
