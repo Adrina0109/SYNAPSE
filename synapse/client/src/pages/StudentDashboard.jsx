@@ -175,12 +175,7 @@ export default function StudentDashboard() {
             const { data } = await api.get('/tasks');
             if (!Array.isArray(data.tasks)) throw new Error('Task data is unavailable.');
             setTasks(data.tasks);
-        } catch (error) {
-            setTasksError(errorMessage(error, 'Could not load your tasks. Please try again.'));
-            if (requestId === tasksRequestId.current) {
-                hasTasksLoaded.current = true;
-                setTasks(data.tasks || []);
-            }
+            hasTasksLoaded.current = true;
         } catch (error) {
             if (requestId === tasksRequestId.current) {
                 setTasksError(error.response?.data?.message || 'Could not load your tasks. Please try again.');
@@ -213,6 +208,11 @@ export default function StudentDashboard() {
             setRoadmaps(data.roadmaps);
         } catch (error) {
             setRoadmapsError(errorMessage(error, 'Could not load your roadmaps. Please try again.'));
+        } finally {
+            setRoadmapsLoading(false);
+        }
+    }, []);
+
     useEffect(() => {
         loadDashboard();
         loadTasks();
@@ -273,9 +273,9 @@ export default function StudentDashboard() {
             setTaskActionError(error.response?.data?.message || 'Could not save this task. Please try again.');
             return false;
         } finally {
-            setRoadmapsLoading(false);
+            setIsSavingTask(false);
         }
-    }, []);
+    };
 
     const loadReadiness = useCallback(async () => {
         setReadinessLoading(true);
@@ -288,6 +288,9 @@ export default function StudentDashboard() {
             setReadinessError(errorMessage(error, 'Could not load placement readiness.'));
         } finally {
             setReadinessLoading(false);
+        }
+    }, []);
+
     const toggleTask = async (task) => {
         setTaskActionError('');
         setTaskFeedback('');
@@ -346,7 +349,21 @@ export default function StudentDashboard() {
         } finally {
             setTogglingTaskIds((current) => current.filter((id) => id !== task._id));
         }
-    }, []);
+    };
+
+    const deleteTask = async (task) => {
+        setTaskActionError('');
+        setTaskFeedback('');
+        try {
+            await api.delete(`/tasks/${task._id}`);
+            setTasks((current) => current.filter((item) => item._id !== task._id));
+            setTaskFeedback('Task deleted successfully.');
+            return true;
+        } catch (error) {
+            setTaskActionError(error.response?.data?.message || 'Could not delete task. Please try again.');
+            return false;
+        }
+    };
 
     const loadConflicts = useCallback(async () => {
         setConflictsLoading(true);
@@ -355,12 +372,8 @@ export default function StudentDashboard() {
             const { data } = await api.get('/planner/conflicts');
             if (!Array.isArray(data.conflicts)) throw new Error('Planner conflict data is unavailable.');
             setConflicts(data.conflicts);
-            await api.delete(`/tasks/${task._id}`);
-            setTasks((current) => current.filter((item) => item._id !== task._id));
-            setTaskFeedback('Task deleted successfully.');
-            return true;
         } catch (error) {
-            setConflictsError(errorMessage(error, 'Could not load planner conflicts.'));
+            setConflictsError(error.response?.data?.message || 'Could not load planner conflicts.');
         } finally {
             setConflictsLoading(false);
         }
@@ -443,7 +456,6 @@ export default function StudentDashboard() {
     const now = new Date();
     const todayKey = capacity?.today || getIstDayKey(now);
     const weekStartKey = getWeekStartKey(todayKey);
-    const pendingTasks = tasks.filter((task) => task.status === 'pending');
     const incompleteTasks = tasks.filter((task) => task.status !== 'completed');
     const dueSoonCount = incompleteTasks.filter((task) => {
         if (!task.deadline) return false;
@@ -725,7 +737,6 @@ export default function StudentDashboard() {
                         </div>
                     )}
                 </section>
-            </main>
         </div>
     );
 }

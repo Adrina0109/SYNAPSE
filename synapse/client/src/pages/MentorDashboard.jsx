@@ -13,7 +13,6 @@ import StatusBadge from '../components/ui/StatusBadge.jsx';
 import Navbar from '../components/Navbar.jsx';
 import RecipientSelector from '../components/RecipientSelector.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import api from '../lib/api.js';
 import { useTaskStats } from '../context/TaskStatsContext.jsx';
 
 const RISK_FILTERS = [
@@ -240,9 +239,11 @@ export default function MentorDashboard() {
 
     const broadcastRecipientCount = recipientMode === 'all' ? recipients.length : selectedStudentIds.length;
     const studentTotals = useMemo(() => ({
-        overdue: students.reduce((sum, student) => sum + (student.overdueTaskCount || 0), 0),
+        pending: analytics?.taskStats?.pending ?? students.reduce((sum, student) => sum + (student.pendingTaskCount || 0), 0),
+        completed: analytics?.taskStats?.completed ?? students.reduce((sum, student) => sum + (student.completedTaskCount || 0), 0),
+        overdue: analytics?.taskStats?.overdue ?? students.reduce((sum, student) => sum + (student.overdueTaskCount || 0), 0),
         atRisk: students.filter((student) => ['high', 'medium'].includes(student.risk?.riskLevel)).length,
-    }), [students]);
+    }), [analytics?.taskStats, students]);
 
     const filteredStudents = useMemo(() => {
         const query = search.trim().toLocaleLowerCase();
@@ -264,10 +265,6 @@ export default function MentorDashboard() {
     const handleRetryDetail = () => {
         if (selectedStudent) openStudent(selectedStudent);
     };
-        pending: analytics?.taskStats?.pending ?? students.reduce((sum, student) => sum + (student.pendingTaskCount || 0), 0),
-        completed: analytics?.taskStats?.completed ?? students.reduce((sum, student) => sum + (student.completedTaskCount || 0), 0),
-        overdue: analytics?.taskStats?.overdue ?? students.reduce((sum, student) => sum + (student.overdueTaskCount || 0), 0),
-    }), [analytics?.taskStats, students]);
     const riskDistribution = analytics?.riskDistribution ?? { low: 0, medium: 0, high: 0 };
     const riskTotal = ['high', 'medium', 'low'].reduce((sum, risk) => sum + (riskDistribution[risk] || 0), 0);
 
@@ -409,22 +406,6 @@ export default function MentorDashboard() {
                         <button type="button" onClick={loadStudents} className="btn-secondary px-3 py-2 text-sm" disabled={studentsLoading}>
                             {studentsLoading ? 'Refreshing…' : 'Refresh'}
                         </button>
-                <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-                    <div className="card-hard p-4 text-center sm:p-5">
-                        <p className="font-display text-3xl font-bold text-ink">{students.length}</p>
-                        <p className="section-label mt-1">Students</p>
-                    </div>
-                    <div className="card-hard p-4 text-center sm:p-5">
-                        <p className="font-display text-3xl font-bold text-forest">{studentTotals.pending}</p>
-                        <p className="section-label mt-1">Pending tasks</p>
-                    </div>
-                    <div className="card-hard p-4 text-center sm:p-5">
-                        <p className="font-display text-3xl font-bold text-ink">{studentTotals.completed}</p>
-                        <p className="section-label mt-1">Completed tasks</p>
-                    </div>
-                    <div className="card-hard col-span-2 p-4 text-center sm:col-span-1 sm:p-5">
-                        <p className="font-display text-3xl font-bold text-signal">{studentTotals.overdue}</p>
-                        <p className="section-label mt-1">Overdue tasks</p>
                     </div>
                     {!studentsLoading && !studentsError && students.length > 0 && (
                         <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
@@ -574,37 +555,6 @@ export default function MentorDashboard() {
                     </>
                 )}
             </section>
-                                <tbody className="divide-y divide-ink/10">
-                                    {students.map((student) => (
-                                        <tr key={student._id} className="align-top">
-                                            <td className="px-4 py-4">
-                                                <p className="font-body text-sm font-semibold text-ink">{student.name}</p>
-                                                <p className="break-all font-mono text-xs text-ink-faint">{student.email}</p>
-                                                {student.risk?.reasons?.length > 0 && (
-                                                    <ul className="mt-2 space-y-1">
-                                                        {student.risk.reasons.map((reason) => <li key={reason} className="font-body text-xs text-ink-muted">· {reason}</li>)}
-                                                    </ul>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-4"><RiskBadge risk={student.risk} /></td>
-                                            <td className="px-4 py-4">
-                                                <p className="whitespace-nowrap font-mono text-xs text-ink">{student.pendingTaskCount || 0} pending</p>
-                                                <p className="mt-1 whitespace-nowrap font-mono text-xs text-forest">{student.completedTaskCount || 0} completed</p>
-                                                <p className="mt-1 whitespace-nowrap font-mono text-xs text-signal">{student.overdueTaskCount || 0} overdue</p>
-                                            </td>
-                                            <td className="px-4 py-4 font-mono text-sm text-ink">{student.readiness?.score ?? '—'}{student.readiness ? '/100' : ''}</td>
-                                            <td className="px-4 py-4">
-                                                <button type="button" onClick={() => openStudent(student)} className="btn-secondary whitespace-nowrap px-3 py-2 text-xs">
-                                                    View details
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
-                </section>
 
                 <section className="card-hard p-4 sm:p-5" aria-labelledby="broadcast-heading">
                     <p className="section-label mb-1">Share with your batch</p>
@@ -657,7 +607,6 @@ export default function MentorDashboard() {
                         </div>
                     </form>
                 </section>
-            </main>
 
             {selectedStudent && (
                 <StudentDetailDrawer

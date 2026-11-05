@@ -175,9 +175,6 @@ export default function Tasks() {
                     </div>
                     <TaskForm task={editingTask} onSubmit={saveTask} isSaving={isSaving} />
             </section>
-                    <TaskForm task={editingTask} onSubmit={saveTask} onTaskChanged={notifyTasksChanged} isSaving={isSaving} />
-                </section>
-
             <section aria-labelledby="task-list-heading">
                     <div className="mb-4 flex flex-col gap-4">
                         <div>

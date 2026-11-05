@@ -229,6 +229,7 @@ export default function Announcements() {
                         </div>
                     )}
                 </section>
+            </main>
             </div>
         </div>
     );
