@@ -20,7 +20,6 @@ const STATUSES = [
 ];
 
 export default function Tasks() {
-    const { user, logout } = useAuth();
     const { notifyTasksChanged } = useTaskStats();
     const navigate = useNavigate();
     const location = useLocation();
@@ -173,7 +172,12 @@ export default function Tasks() {
                             <button type="button" onClick={() => setEditingTask(null)} className="btn-ghost text-sm">Cancel edit</button>
                         )}
                     </div>
-                    <TaskForm task={editingTask} onSubmit={saveTask} isSaving={isSaving} />
+                    <TaskForm
+                        task={editingTask}
+                        onSubmit={saveTask}
+                        onTaskChanged={notifyTasksChanged}
+                        isSaving={isSaving}
+                    />
             </section>
             <section aria-labelledby="task-list-heading">
                     <div className="mb-4 flex flex-col gap-4">

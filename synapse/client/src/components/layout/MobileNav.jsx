@@ -76,7 +76,10 @@ export default function MobileNav() {
         };
     }, [isOpen]);
 
-    const closeDrawer = () => setIsOpen(false);
+    const closeDrawer = () => {
+        setIsOpen(false);
+        triggerRef.current?.focus();
+    };
 
     return (
         <div className="lg:hidden">

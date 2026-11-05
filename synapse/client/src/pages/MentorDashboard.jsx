@@ -10,7 +10,6 @@ import PageHeader from '../components/ui/PageHeader.jsx';
 import ProgressBar from '../components/ui/ProgressBar.jsx';
 import Skeleton from '../components/ui/Skeleton.jsx';
 import StatusBadge from '../components/ui/StatusBadge.jsx';
-import Navbar from '../components/Navbar.jsx';
 import RecipientSelector from '../components/RecipientSelector.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { useTaskStats } from '../context/TaskStatsContext.jsx';
@@ -327,14 +326,31 @@ export default function MentorDashboard() {
                                 <label htmlFor="broadcast-hours" className="mb-1 block font-body text-sm font-medium text-text">Estimated hours</label>
                                 <input id="broadcast-hours" type="number" min="0" max="100" step="0.5" required value={broadcast.estimatedHours} onChange={(event) => setBroadcast({ ...broadcast, estimatedHours: event.target.value })} className="input-base" />
                             </div>
+                            <RecipientSelector
+                                recipients={recipients}
+                                loading={recipientsLoading}
+                                error={recipientsError}
+                                onRetry={loadRecipients}
+                                isAdmin={user?.role === 'admin'}
+                                recipientMode={recipientMode}
+                                setRecipientMode={setRecipientMode}
+                                selectedStudentIds={selectedStudentIds}
+                                setSelectedStudentIds={setSelectedStudentIds}
+                            />
+                            {broadcastRecipientCount > 0 && (
+                                <p className="font-body text-sm text-text-muted sm:col-span-2" role="status">
+                                    This will notify {broadcastRecipientCount} {broadcastRecipientCount === 1 ? 'student' : 'students'}.
+                                </p>
+                            )}
                             <div className="flex items-end">
-                                <button type="submit" disabled={broadcastLoading || students.length === 0} className="btn-primary w-full sm:w-auto">
-                                    {broadcastLoading ? 'Sending…' : 'Send to assigned students'}
+                                <button
+                                    type="submit"
+                                    disabled={broadcastLoading || recipientsLoading || Boolean(recipientsError) || recipients.length === 0 || (recipientMode === 'selected' && selectedStudentIds.length === 0)}
+                                    className="btn-primary w-full sm:w-auto"
+                                >
+                                    {broadcastLoading ? 'Sending…' : 'Send task'}
                                 </button>
                             </div>
-                            {students.length === 0 && !studentsLoading && (
-                                <p className="font-body text-xs text-text-faint sm:col-span-2">Assign students before broadcasting a task.</p>
-                            )}
                         </form>
                     </div>
                 </Card>
@@ -555,58 +571,6 @@ export default function MentorDashboard() {
                     </>
                 )}
             </section>
-
-                <section className="card-hard p-4 sm:p-5" aria-labelledby="broadcast-heading">
-                    <p className="section-label mb-1">Share with your batch</p>
-                    <h2 id="broadcast-heading" className="mb-4 font-display text-xl font-semibold text-ink">Broadcast a task</h2>
-                    {broadcastFeedback && <p className="mb-4 border border-forest/30 bg-forest/10 px-4 py-3 font-body text-sm text-forest" role="status">{broadcastFeedback}</p>}
-                    {broadcastError && <p className="mb-4 border border-signal/30 bg-signal/10 px-4 py-3 font-body text-sm text-signal" role="alert">{broadcastError}</p>}
-                    <form onSubmit={submitBroadcast} className="grid gap-4 sm:grid-cols-2">
-                        <div className="sm:col-span-2">
-                            <label htmlFor="broadcast-title" className="mb-1 block font-body text-sm font-medium text-ink">Title</label>
-                            <input id="broadcast-title" required maxLength={200} value={broadcast.title} onChange={(event) => setBroadcast({ ...broadcast, title: event.target.value })} className="input-base" />
-                        </div>
-                        <div className="sm:col-span-2">
-                            <label htmlFor="broadcast-description" className="mb-1 block font-body text-sm font-medium text-ink">Description</label>
-                            <textarea id="broadcast-description" rows={3} maxLength={2000} value={broadcast.description} onChange={(event) => setBroadcast({ ...broadcast, description: event.target.value })} className="input-base resize-y" />
-                        </div>
-                        <div>
-                            <label htmlFor="broadcast-deadline" className="mb-1 block font-body text-sm font-medium text-ink">Deadline</label>
-                            <input id="broadcast-deadline" type="datetime-local" value={broadcast.deadline} onChange={(event) => setBroadcast({ ...broadcast, deadline: event.target.value })} className="input-base min-w-0" />
-                        </div>
-                        <div>
-                            <label htmlFor="broadcast-category" className="mb-1 block font-body text-sm font-medium text-ink">Category</label>
-                            <select id="broadcast-category" value={broadcast.category} onChange={(event) => setBroadcast({ ...broadcast, category: event.target.value })} className="input-base">
-                                {['assessment', 'assignment', 'placement', 'event', 'personal'].map((category) => <option key={category} value={category}>{category}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label htmlFor="broadcast-hours" className="mb-1 block font-body text-sm font-medium text-ink">Estimated hours</label>
-                            <input id="broadcast-hours" type="number" min="0" max="100" step="0.5" required value={broadcast.estimatedHours} onChange={(event) => setBroadcast({ ...broadcast, estimatedHours: event.target.value })} className="input-base" />
-                        </div>
-                        <RecipientSelector
-                            recipients={recipients}
-                            loading={recipientsLoading}
-                            error={recipientsError}
-                            onRetry={loadRecipients}
-                            isAdmin={user?.role === 'admin'}
-                            recipientMode={recipientMode}
-                            setRecipientMode={setRecipientMode}
-                            selectedStudentIds={selectedStudentIds}
-                            setSelectedStudentIds={setSelectedStudentIds}
-                        />
-                        {broadcastRecipientCount > 0 && (
-                            <p className="font-body text-sm text-ink-muted sm:col-span-2" role="status">
-                                This will notify {broadcastRecipientCount} {broadcastRecipientCount === 1 ? 'student' : 'students'}.
-                            </p>
-                        )}
-                        <div className="flex items-end">
-                            <button type="submit" disabled={broadcastLoading || recipientsLoading || Boolean(recipientsError) || recipients.length === 0 || (recipientMode === 'selected' && selectedStudentIds.length === 0)} className="btn-primary w-full sm:w-auto">
-                                {broadcastLoading ? 'Sending…' : 'Send task'}
-                            </button>
-                        </div>
-                    </form>
-                </section>
 
             {selectedStudent && (
                 <StudentDetailDrawer
