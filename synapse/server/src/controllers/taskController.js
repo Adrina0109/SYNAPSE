@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import Task from '../models/Task.js';
+import { getConflictsForTasks } from '../services/capacityService.js';
 import { createTaskSchema, taskQuerySchema, updateTaskSchema } from '../validators/taskValidators.js';
 
 const validationErrors = (issues) => {
@@ -70,7 +71,13 @@ export const createTask = async (req, res, next) => {
             completedAt: parsed.data.status === 'completed' ? new Date() : null,
         });
 
-        res.status(201).json({ success: true, message: 'Task created successfully', task });
+        const conflicts = await getConflictsForTasks(req.user.id, [task._id]);
+        res.status(201).json({
+            success: true,
+            message: 'Task created successfully',
+            task,
+            conflicts,
+        });
     } catch (err) {
         next(err);
     }
@@ -104,7 +111,11 @@ export const updateTask = async (req, res, next) => {
         }
         await task.save();
 
-        res.status(200).json({ success: true, message: 'Task updated successfully', task });
+        const response = { success: true, message: 'Task updated successfully', task };
+        if (parsed.data.deadline !== undefined || parsed.data.estimatedHours !== undefined) {
+            response.conflicts = await getConflictsForTasks(req.user.id, [task._id]);
+        }
+        res.status(200).json(response);
     } catch (err) {
         next(err);
     }
