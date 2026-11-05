@@ -9,6 +9,7 @@ import PageHeader from '../components/ui/PageHeader.jsx';
 import ErrorState from '../components/ui/ErrorState.jsx';
 import EmptyState from '../components/ui/EmptyState.jsx';
 import Skeleton from '../components/ui/Skeleton.jsx';
+import { useTaskStats } from '../context/TaskStatsContext.jsx';
 
 const CATEGORIES = ['assessment', 'assignment', 'placement', 'event', 'personal'];
 const STATUSES = [
@@ -19,6 +20,8 @@ const STATUSES = [
 ];
 
 export default function Tasks() {
+    const { user, logout } = useAuth();
+    const { notifyTasksChanged } = useTaskStats();
     const navigate = useNavigate();
     const location = useLocation();
     const [tasks, setTasks] = useState([]);
@@ -85,8 +88,10 @@ export default function Tasks() {
             }
             setEditingTask(null);
             await loadTasks();
+            return true;
         } catch (error) {
             setActionError(error.response?.data?.message || 'Could not save this task. Please try again.');
+            return false;
         } finally {
             setIsSaving(false);
         }
@@ -95,13 +100,23 @@ export default function Tasks() {
     const toggleTask = async (task) => {
         setActionError('');
         setFeedback('');
+        const oldTask = task;
+        const optimisticTask = {
+            ...task,
+            status: task.status === 'completed' ? 'pending' : 'completed',
+            completedAt: task.status === 'completed' ? null : new Date().toISOString(),
+        };
+        setTasks((current) => current.map((item) => item._id === task._id ? optimisticTask : item));
         try {
             const { data } = await api.patch(`/tasks/${task._id}/toggle`);
             setTasks((current) => current.map((item) => item._id === task._id
                 ? data.task
                 : item));
+            return true;
         } catch (error) {
+            setTasks((current) => current.map((item) => item._id === task._id ? oldTask : item));
             setActionError(error.response?.data?.message || 'Could not update task status. Please try again.');
+            return false;
         }
     };
 
@@ -160,6 +175,8 @@ export default function Tasks() {
                     </div>
                     <TaskForm task={editingTask} onSubmit={saveTask} isSaving={isSaving} />
             </section>
+                    <TaskForm task={editingTask} onSubmit={saveTask} onTaskChanged={notifyTasksChanged} isSaving={isSaving} />
+                </section>
 
             <section aria-labelledby="task-list-heading">
                     <div className="mb-4 flex flex-col gap-4">
@@ -231,6 +248,7 @@ export default function Tasks() {
                                     onToggle={toggleTask}
                                     onEdit={startEditing}
                                     onDelete={deleteTask}
+                                    onTaskChanged={notifyTasksChanged}
                                 />
                             ))}
                         </div>

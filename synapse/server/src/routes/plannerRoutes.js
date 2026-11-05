@@ -7,6 +7,7 @@ import {
     previewReplanHandler,
 } from '../controllers/plannerController.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
+import noStore from '../middleware/noStore.js';
 
 const router = express.Router();
 
@@ -24,8 +25,8 @@ const plannerWriteLimiter = rateLimit({
 
 router.use(requireAuth, requireRole('student'));
 
-router.get('/capacity', getCapacity);
-router.get('/conflicts', getConflicts);
+router.get('/capacity', noStore, getCapacity);
+router.get('/conflicts', noStore, getConflicts);
 router.post('/replan/preview', plannerWriteLimiter, previewReplanHandler);
 router.post('/replan/apply', plannerWriteLimiter, applyReplanHandler);
 

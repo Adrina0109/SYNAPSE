@@ -10,4 +10,17 @@ export const mentorBroadcastSchema = z.object({
     deadline: z.coerce.date().nullable().optional(),
     category: z.enum(['assessment', 'assignment', 'placement', 'event', 'personal']).optional(),
     estimatedHours: z.number().min(0).max(100).optional(),
-}).strict();
+    recipientMode: z.enum(['all', 'selected']).default('all'),
+    studentIds: z.array(z.string().regex(/^[a-f\d]{24}$/i, 'Student IDs must be valid ObjectIds'))
+        .min(1)
+        .max(200)
+        .optional(),
+}).strict().superRefine((data, ctx) => {
+    if (data.recipientMode === 'selected' && !data.studentIds) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['studentIds'],
+            message: 'Select at least one student.',
+        });
+    }
+});

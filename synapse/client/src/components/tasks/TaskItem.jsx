@@ -3,7 +3,7 @@ import ConfirmDialog from '../ui/ConfirmDialog.jsx';
 import StatusBadge from '../ui/StatusBadge.jsx';
 import { formatTaskDeadline, labelizeTaskValue } from './taskHelpers.js';
 
-export default function TaskItem({ task, onToggle, onEdit, onDelete }) {
+export default function TaskItem({ task, onToggle, onEdit, onDelete, onTaskChanged, isToggling = false }) {
     const [confirmingDelete, setConfirmingDelete] = useState(false);
     const isOverdue = task.status !== 'completed'
         && task.deadline
@@ -16,7 +16,10 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }) {
 
     const confirmDelete = async () => {
         const deleted = await onDelete(task);
-        if (deleted !== false) setConfirmingDelete(false);
+        if (deleted !== false) {
+            setConfirmingDelete(false);
+            onTaskChanged?.();
+        }
     };
 
     return (
@@ -32,6 +35,22 @@ export default function TaskItem({ task, onToggle, onEdit, onDelete }) {
                     />
                     <div className="min-w-0">
                         <h3 className={`break-words font-display text-base font-semibold ${task.status === 'completed' ? 'line-through text-text-faint' : 'text-text'}`}>
+        <article className={`card-hard p-4 sm:p-5 ${task.status === 'completed' ? 'opacity-65' : ''}`}>
+            <div className="flex items-start gap-3 sm:gap-4">
+                <input
+                    type="checkbox"
+                    checked={task.status === 'completed'}
+                    onChange={async () => {
+                        const updated = await onToggle(task);
+                        if (updated !== false) onTaskChanged?.();
+                    }}
+                    disabled={isToggling}
+                    aria-label={`${task.status === 'completed' ? 'Reopen' : 'Complete'} ${task.title}`}
+                    className="mt-1 h-4 w-4 flex-shrink-0 accent-forest"
+                />
+                <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                        <h3 className={`font-display text-lg font-semibold break-words ${task.status === 'completed' ? 'line-through text-ink-faint' : 'text-ink'}`}>
                             {task.title}
                         </h3>
                         <p className={`mt-1 font-mono text-xs ${isOverdue ? 'text-danger' : 'text-text-muted'}`}>

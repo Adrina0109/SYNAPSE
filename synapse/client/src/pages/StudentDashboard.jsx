@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import MetricCard from '../components/ui/MetricCard.jsx';
 import PageHeader from '../components/ui/PageHeader.jsx';
@@ -13,6 +13,7 @@ import {
     WeekPlanCard,
 } from '../components/dashboard/DashboardCards.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useTaskStats } from '../context/TaskStatsContext.jsx';
 import api from '../lib/api.js';
 import ErrorState from '../components/ui/ErrorState.jsx';
 
@@ -112,6 +113,7 @@ const MetricError = ({ label, message, onRetry }) => (
 
 export default function StudentDashboard() {
     const { user } = useAuth();
+    const { refreshKey, notifyTasksChanged } = useTaskStats();
     const [dashboard, setDashboard] = useState(null);
     const [dashboardLoading, setDashboardLoading] = useState(true);
     const [dashboardError, setDashboardError] = useState('');
@@ -134,22 +136,40 @@ export default function StudentDashboard() {
     const [conflicts, setConflicts] = useState(null);
     const [conflictsLoading, setConflictsLoading] = useState(true);
     const [conflictsError, setConflictsError] = useState('');
+    const [taskActionError, setTaskActionError] = useState('');
+    const [taskFeedback, setTaskFeedback] = useState('');
+    const [showTaskForm, setShowTaskForm] = useState(false);
+    const [editingTask, setEditingTask] = useState(null);
+    const [isSavingTask, setIsSavingTask] = useState(false);
+    const dashboardRequestId = useRef(0);
+    const tasksRequestId = useRef(0);
+    const hasDashboardLoaded = useRef(false);
+    const hasTasksLoaded = useRef(false);
+    const [togglingTaskIds, setTogglingTaskIds] = useState([]);
 
     const loadDashboard = useCallback(async () => {
-        setDashboardLoading(true);
+        const requestId = ++dashboardRequestId.current;
+        if (!hasDashboardLoaded.current) setDashboardLoading(true);
         setDashboardError('');
         try {
             const { data } = await api.get('/dashboard/student');
-            setDashboard(data);
+            if (requestId === dashboardRequestId.current) {
+                hasDashboardLoaded.current = true;
+                setDashboard(data);
+            }
         } catch (error) {
             setDashboardError(errorMessage(error, 'Could not load your dashboard. Please try again.'));
+            if (requestId === dashboardRequestId.current) {
+                setDashboardError(error.response?.data?.message || 'Could not load your dashboard. Please try again.');
+            }
         } finally {
-            setDashboardLoading(false);
+            if (requestId === dashboardRequestId.current) setDashboardLoading(false);
         }
     }, []);
 
     const loadTasks = useCallback(async () => {
-        setTasksLoading(true);
+        const requestId = ++tasksRequestId.current;
+        if (!hasTasksLoaded.current) setTasksLoading(true);
         setTasksError('');
         try {
             const { data } = await api.get('/tasks');
@@ -157,8 +177,16 @@ export default function StudentDashboard() {
             setTasks(data.tasks);
         } catch (error) {
             setTasksError(errorMessage(error, 'Could not load your tasks. Please try again.'));
+            if (requestId === tasksRequestId.current) {
+                hasTasksLoaded.current = true;
+                setTasks(data.tasks || []);
+            }
+        } catch (error) {
+            if (requestId === tasksRequestId.current) {
+                setTasksError(error.response?.data?.message || 'Could not load your tasks. Please try again.');
+            }
         } finally {
-            setTasksLoading(false);
+            if (requestId === tasksRequestId.current) setTasksLoading(false);
         }
     }, []);
 
@@ -185,6 +213,65 @@ export default function StudentDashboard() {
             setRoadmaps(data.roadmaps);
         } catch (error) {
             setRoadmapsError(errorMessage(error, 'Could not load your roadmaps. Please try again.'));
+    useEffect(() => {
+        loadDashboard();
+        loadTasks();
+    }, [loadDashboard, loadTasks, refreshKey]);
+
+    useEffect(() => {
+        const refreshOnFocus = () => {
+            if (document.visibilityState === 'visible') {
+                loadDashboard();
+                loadTasks();
+            }
+        };
+        window.addEventListener('focus', refreshOnFocus);
+        return () => window.removeEventListener('focus', refreshOnFocus);
+    }, [loadDashboard, loadTasks]);
+
+    const pendingTasks = useMemo(
+        () => sortTasksByDeadline(tasks.filter((task) => task.status !== 'completed')),
+        [tasks]
+    );
+    const taskSummary = useMemo(() => {
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setHours(0, 0, 0, 0);
+        weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+        return {
+            overdue: dashboard?.taskStats?.overdue ?? pendingTasks.filter((task) => task.deadline && new Date(task.deadline) < now).length,
+            dueSoon: dashboard?.taskStats?.dueInThreeDays ?? pendingTasks.filter((task) => {
+                if (!task.deadline) return false;
+                const deadline = new Date(task.deadline).getTime();
+                return deadline >= now.getTime() && deadline <= now.getTime() + 3 * 86400000;
+            }).length,
+            completedThisWeek: dashboard?.taskStats?.completedThisWeek ?? tasks.filter((task) => (
+                task.status === 'completed'
+                && task.completedAt
+                && new Date(task.completedAt) >= weekStart
+                && new Date(task.completedAt) <= now
+            )).length,
+        };
+    }, [dashboard?.taskStats, pendingTasks, tasks]);
+
+    const saveTask = async (payload) => {
+        setIsSavingTask(true);
+        setTaskActionError('');
+        setTaskFeedback('');
+        try {
+            if (editingTask) {
+                await api.patch(`/tasks/${editingTask._id}`, payload);
+                setTaskFeedback('Task updated successfully.');
+            } else {
+                await api.post('/tasks', payload);
+                setTaskFeedback('Task added successfully.');
+            }
+            setShowTaskForm(false);
+            setEditingTask(null);
+            return true;
+        } catch (error) {
+            setTaskActionError(error.response?.data?.message || 'Could not save this task. Please try again.');
+            return false;
         } finally {
             setRoadmapsLoading(false);
         }
@@ -201,6 +288,63 @@ export default function StudentDashboard() {
             setReadinessError(errorMessage(error, 'Could not load placement readiness.'));
         } finally {
             setReadinessLoading(false);
+    const toggleTask = async (task) => {
+        setTaskActionError('');
+        setTaskFeedback('');
+        const wasCompleted = task.status === 'completed';
+        const optimisticTask = {
+            ...task,
+            status: wasCompleted ? 'pending' : 'completed',
+            completedAt: wasCompleted ? null : new Date().toISOString(),
+        };
+        setTasks((current) => current.map((item) => item._id === task._id ? optimisticTask : item));
+        setDashboard((current) => {
+            if (!current?.taskStats) return current;
+            const completedDelta = wasCompleted ? -1 : 1;
+            const pendingDelta = -completedDelta;
+            const total = current.taskStats.total ?? 0;
+            const completed = Math.max(0, (current.taskStats.completed ?? 0) + completedDelta);
+            return {
+                ...current,
+                taskStats: {
+                    ...current.taskStats,
+                    completed,
+                    pending: Math.max(0, (current.taskStats.pending ?? 0) + pendingDelta),
+                    completionRate: total === 0 ? 0 : Math.round((completed / total) * 10000) / 100,
+                },
+            };
+        });
+        setTogglingTaskIds((current) => [...current, task._id]);
+        try {
+            const { data } = await api.patch(`/tasks/${task._id}/toggle`);
+            setTasks((current) => current.map((item) => item._id === task._id ? data.task : item));
+            if (data.taskStats) {
+                setDashboard((current) => current ? { ...current, taskStats: data.taskStats } : current);
+            }
+            setTaskFeedback(data.task.status === 'completed' ? 'Task completed.' : 'Task marked pending.');
+            return true;
+        } catch (error) {
+            setTasks((current) => current.map((item) => item._id === task._id ? task : item));
+            setDashboard((current) => {
+                if (!current?.taskStats) return current;
+                const completedDelta = wasCompleted ? 1 : -1;
+                const pendingDelta = -completedDelta;
+                const total = current.taskStats.total ?? 0;
+                const completed = Math.max(0, (current.taskStats.completed ?? 0) + completedDelta);
+                return {
+                    ...current,
+                    taskStats: {
+                        ...current.taskStats,
+                        completed,
+                        pending: Math.max(0, (current.taskStats.pending ?? 0) + pendingDelta),
+                        completionRate: total === 0 ? 0 : Math.round((completed / total) * 10000) / 100,
+                    },
+                };
+            });
+            setTaskActionError(error.response?.data?.message || 'Could not update task status. Please try again.');
+            return false;
+        } finally {
+            setTogglingTaskIds((current) => current.filter((id) => id !== task._id));
         }
     }, []);
 
@@ -211,6 +355,10 @@ export default function StudentDashboard() {
             const { data } = await api.get('/planner/conflicts');
             if (!Array.isArray(data.conflicts)) throw new Error('Planner conflict data is unavailable.');
             setConflicts(data.conflicts);
+            await api.delete(`/tasks/${task._id}`);
+            setTasks((current) => current.filter((item) => item._id !== task._id));
+            setTaskFeedback('Task deleted successfully.');
+            return true;
         } catch (error) {
             setConflictsError(errorMessage(error, 'Could not load planner conflicts.'));
         } finally {
@@ -518,6 +666,66 @@ export default function StudentDashboard() {
                     onRetry={loadConflicts}
                 />
             )}
+                <section aria-labelledby="my-tasks-heading">
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p className="section-label mb-1">Your work</p>
+                            <h2 id="my-tasks-heading" className="font-display text-2xl font-semibold text-ink">My Tasks</h2>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Link to="/tasks" className="btn-ghost text-sm">View all →</Link>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setEditingTask(null);
+                                    setShowTaskForm((visible) => !visible);
+                                    setTaskActionError('');
+                                    setTaskFeedback('');
+                                }}
+                                className="btn-primary px-4 py-2 text-sm"
+                            >
+                                {showTaskForm && !editingTask ? 'Close' : 'Add task'}
+                            </button>
+                        </div>
+                    </div>
+                    <p className="mb-4 font-mono text-xs text-ink-faint" aria-live="polite">
+                        {dashboard?.taskStats?.completed ?? tasks.filter((task) => task.status === 'completed').length} completed · {dashboard?.taskStats?.pending ?? pendingTasks.length} pending · {dashboard?.taskStats?.completionRate ?? 0}% complete · {taskSummary.overdue} overdue · {taskSummary.dueSoon} due within 3 days · {taskSummary.completedThisWeek} completed this week
+                    </p>
+                    {taskFeedback && <p className="mb-4 border border-forest/30 bg-forest/10 px-4 py-3 font-body text-sm text-forest" role="status">{taskFeedback}</p>}
+                    {taskActionError && <p className="mb-4 border border-signal/30 bg-signal/10 px-4 py-3 font-body text-sm text-signal" role="alert">{taskActionError}</p>}
+                    {showTaskForm && (
+                        <div className="card-hard mb-4 p-4 sm:p-6">
+                            <h3 className="mb-4 font-display text-lg font-semibold text-ink">{editingTask ? 'Edit task' : 'Add a task'}</h3>
+                            <TaskForm
+                                task={editingTask}
+                                onSubmit={saveTask}
+                                onTaskChanged={notifyTasksChanged}
+                                onCancel={() => {
+                                    setShowTaskForm(false);
+                                    setEditingTask(null);
+                                }}
+                                isSaving={isSavingTask}
+                            />
+                        </div>
+                    )}
+                    {tasksLoading ? (
+                        <div className="card-hard p-5"><Loading label="Loading tasks" /></div>
+                    ) : tasksError ? (
+                        <div className="card-hard p-5 text-center" role="alert">
+                            <p className="mb-3 font-body text-sm text-signal">{tasksError}</p>
+                            <button type="button" onClick={loadTasks} className="btn-secondary px-4 py-2 text-sm">Try again</button>
+                        </div>
+                    ) : pendingTasks.length === 0 ? (
+                        <div className="card-hard p-5 text-center"><Empty>No pending tasks. Add one to get started.</Empty></div>
+                    ) : (
+                        <div className="space-y-3">
+                            {pendingTasks.slice(0, 6).map((task) => (
+                                <TaskItem key={task._id} task={task} onToggle={toggleTask} onEdit={startEditing} onDelete={deleteTask} onTaskChanged={notifyTasksChanged} isToggling={togglingTaskIds.includes(task._id)} />
+                            ))}
+                        </div>
+                    )}
+                </section>
+            </main>
         </div>
     );
 }

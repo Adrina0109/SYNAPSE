@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../lib/api.js';
 import UserManagementCard from '../components/admin/UserManagementCard.jsx';
@@ -178,6 +178,15 @@ export default function AdminDashboard() {
     const loadUsers = useCallback(async () => {
         setUsersLoading(true);
         setUsersError('');
+    const assignmentsRequestId = useRef(0);
+    const statsRequestId = useRef(0);
+    const hasAssignmentsLoaded = useRef(false);
+    const hasStatsLoaded = useRef(false);
+
+    const loadAssignments = useCallback(async () => {
+        const requestId = ++assignmentsRequestId.current;
+        if (!hasAssignmentsLoaded.current) setIsLoading(true);
+        setError('');
         try {
             const [studentsResponse, mentorsResponse] = await Promise.all([
                 api.get('/admin/users', { params: { role: 'student' } }),
@@ -191,19 +200,37 @@ export default function AdminDashboard() {
             setUsersError(requestError.response?.data?.message || 'Could not load users. Please try again.');
         } finally {
             setUsersLoading(false);
+            if (requestId === assignmentsRequestId.current) {
+                hasAssignmentsLoaded.current = true;
+                setStudents(studentsResponse.data.users || []);
+                setMentors(mentorsResponse.data.mentors || []);
+            }
+        } catch (requestError) {
+            if (requestId === assignmentsRequestId.current) {
+                setError(requestError.response?.data?.message || 'Could not load mentor assignments. Please try again.');
+            }
+        } finally {
+            if (requestId === assignmentsRequestId.current) setIsLoading(false);
         }
     }, []);
 
     const loadStats = useCallback(async () => {
-        setStatsLoading(true);
+        const requestId = ++statsRequestId.current;
+        if (!hasStatsLoaded.current) setStatsLoading(true);
         setStatsError('');
         try {
             const { data } = await api.get('/admin/stats');
-            setStats(data.stats ?? null);
+            if (requestId === statsRequestId.current) {
+                hasStatsLoaded.current = true;
+                setStats(data.stats ?? null);
+            }
         } catch (requestError) {
             setStatsError(requestError.response?.data?.message || 'Could not load institution stats. Please try again.');
+            if (requestId === statsRequestId.current) {
+                setStatsError(requestError.response?.data?.message || 'Could not load admin stats. Please try again.');
+            }
         } finally {
-            setStatsLoading(false);
+            if (requestId === statsRequestId.current) setStatsLoading(false);
         }
     }, []);
 
@@ -219,6 +246,38 @@ export default function AdminDashboard() {
             setAnalyticsLoading(false);
         }
     }, []);
+    useEffect(() => {
+        loadStats();
+    }, [loadStats]);
+
+    useEffect(() => {
+        const refreshVisibleDashboard = () => {
+            if (document.visibilityState !== 'visible') return;
+            loadAssignments();
+            loadStats();
+        };
+        const intervalId = window.setInterval(refreshVisibleDashboard, 60000);
+        window.addEventListener('focus', refreshVisibleDashboard);
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', refreshVisibleDashboard);
+        };
+    }, [loadAssignments, loadStats]);
+
+    const filteredStudents = useMemo(() => {
+        const normalizedSearch = search.trim().toLowerCase();
+        if (!normalizedSearch) return students;
+        return students.filter((student) => [
+            student.name,
+            student.email,
+            student.department,
+            student.year,
+        ].some((value) => String(value ?? '').toLowerCase().includes(normalizedSearch)));
+    }, [search, students]);
+
+    const visibleStudentIds = filteredStudents.map((student) => student._id);
+    const allVisibleSelected = visibleStudentIds.length > 0
+        && visibleStudentIds.every((studentId) => selectedStudents.includes(studentId));
 
     const loadDrives = useCallback(async () => {
         setDrivesLoading(true);
@@ -303,6 +362,38 @@ export default function AdminDashboard() {
     };
 
     const unassignMentor = (student, mentor) => updateMentorAssignment(student, mentor, 'unassign');
+                <div className="mb-8">
+                    {statsLoading ? (
+                        <div className="card-hard p-5" role="status">
+                            <p className="font-mono text-xs uppercase tracking-widest text-ink-faint">Loading admin stats…</p>
+                        </div>
+                    ) : statsError ? (
+                        <div className="card-hard flex flex-wrap items-center justify-between gap-3 p-4" role="alert">
+                            <p className="font-body text-sm text-signal">{statsError}</p>
+                            <button type="button" onClick={loadStats} className="btn-secondary px-4 py-2 text-sm">Retry</button>
+                        </div>
+                    ) : stats ? (
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 sm:gap-4">
+                            <MetricCard num={stats.usersByRole?.student ?? 0} label="Students" />
+                            <MetricCard num={stats.usersByRole?.mentor ?? 0} label="Mentors" />
+                            <MetricCard num={stats.usersByRole?.admin ?? 0} label="Admins" />
+                            <MetricCard num={stats.documentCount ?? 0} label="Documents" />
+                            <MetricCard num={stats.announcementCount ?? 0} label="Announcements" />
+                            <MetricCard num={stats.unassignedStudentCount ?? 0} label="Unassigned students" highlight />
+                            <MetricCard num={stats.taskStats?.completed ?? 0} label="Tasks completed" />
+                            <MetricCard num={stats.taskStats?.pending ?? 0} label="Tasks pending" />
+                            <MetricCard num={stats.taskStats?.overdue ?? 0} label="Tasks overdue" highlight />
+                            <MetricCard num={stats.taskStats?.dueInThreeDays ?? 0} label="Due in 3 days" />
+                            <MetricCard num={`${stats.taskStats?.completionRate ?? 0}%`} label="Task completion" />
+                            <MetricCard num={stats.taskStats?.completedThisWeek ?? 0} label="Completed this week" />
+                        </div>
+                    ) : (
+                        <div className="card-hard p-5">
+                            <p className="font-body text-sm text-ink-muted">Admin stats are not available yet.</p>
+                            <button type="button" onClick={loadStats} className="btn-secondary mt-3 px-4 py-2 text-sm">Retry</button>
+                        </div>
+                    )}
+                </div>
 
     const studentCount = stats?.usersByRole?.student ?? users.filter((user) => user.role === 'student').length;
     const mentorCount = stats?.usersByRole?.mentor ?? users.filter((user) => user.role === 'mentor').length;

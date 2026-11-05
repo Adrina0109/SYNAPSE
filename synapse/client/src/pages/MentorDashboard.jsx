@@ -10,6 +10,11 @@ import PageHeader from '../components/ui/PageHeader.jsx';
 import ProgressBar from '../components/ui/ProgressBar.jsx';
 import Skeleton from '../components/ui/Skeleton.jsx';
 import StatusBadge from '../components/ui/StatusBadge.jsx';
+import Navbar from '../components/Navbar.jsx';
+import RecipientSelector from '../components/RecipientSelector.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
+import api from '../lib/api.js';
+import { useTaskStats } from '../context/TaskStatsContext.jsx';
 
 const RISK_FILTERS = [
     { key: 'all', label: 'All' },
@@ -44,6 +49,8 @@ const LoadingStudents = () => (
 );
 
 export default function MentorDashboard() {
+    const { user } = useAuth();
+    const { notifyTasksChanged } = useTaskStats();
     const [students, setStudents] = useState([]);
     const [studentsLoading, setStudentsLoading] = useState(true);
     const [studentsError, setStudentsError] = useState('');
@@ -60,6 +67,11 @@ export default function MentorDashboard() {
     const [summaryLoading, setSummaryLoading] = useState(false);
     const [summaryError, setSummaryError] = useState('');
     const [broadcastOpen, setBroadcastOpen] = useState(false);
+    const [recipients, setRecipients] = useState([]);
+    const [recipientsLoading, setRecipientsLoading] = useState(true);
+    const [recipientsError, setRecipientsError] = useState('');
+    const [recipientMode, setRecipientMode] = useState('all');
+    const [selectedStudentIds, setSelectedStudentIds] = useState([]);
     const [broadcast, setBroadcast] = useState({
         title: '',
         description: '',
@@ -71,36 +83,83 @@ export default function MentorDashboard() {
     const [broadcastError, setBroadcastError] = useState('');
     const [broadcastFeedback, setBroadcastFeedback] = useState('');
     const openerRef = useRef(null);
+    const studentsRequestId = useRef(0);
+    const analyticsRequestId = useRef(0);
+    const hasStudentsLoaded = useRef(false);
+    const hasAnalyticsLoaded = useRef(false);
 
     const loadStudents = useCallback(async () => {
-        setStudentsLoading(true);
+        const requestId = ++studentsRequestId.current;
+        if (!hasStudentsLoaded.current) setStudentsLoading(true);
         setStudentsError('');
         try {
             const { data } = await api.get('/mentor/students');
-            setStudents(Array.isArray(data.students) ? data.students : []);
+            if (requestId === studentsRequestId.current) {
+                hasStudentsLoaded.current = true;
+                setStudents(Array.isArray(data.students) ? data.students : []);
+            }
         } catch (error) {
-            setStudentsError(error.response?.data?.message || 'Could not load assigned students. Please try again.');
+            if (requestId === studentsRequestId.current) {
+                setStudentsError(error.response?.data?.message || 'Could not load assigned students. Please try again.');
+            }
         } finally {
-            setStudentsLoading(false);
+            if (requestId === studentsRequestId.current) setStudentsLoading(false);
         }
     }, []);
 
     const loadAnalytics = useCallback(async () => {
-        setAnalyticsLoading(true);
+        const requestId = ++analyticsRequestId.current;
+        if (!hasAnalyticsLoaded.current) setAnalyticsLoading(true);
         setAnalyticsError('');
         try {
             const { data } = await api.get('/mentor/analytics');
-            setAnalytics(data.analytics ?? null);
+            if (requestId === analyticsRequestId.current) {
+                hasAnalyticsLoaded.current = true;
+                setAnalytics(data.analytics ?? null);
+            }
         } catch (error) {
-            setAnalyticsError(error.response?.data?.message || 'Could not load class analytics. Please try again.');
+            if (requestId === analyticsRequestId.current) {
+                setAnalyticsError(error.response?.data?.message || 'Could not load class analytics. Please try again.');
+            }
         } finally {
-            setAnalyticsLoading(false);
+            if (requestId === analyticsRequestId.current) setAnalyticsLoading(false);
+        }
+    }, []);
+
+    const loadRecipients = useCallback(async () => {
+        setRecipientsLoading(true);
+        setRecipientsError('');
+        try {
+            const { data } = await api.get('/mentor/recipients');
+            setRecipients(data.students || []);
+            setSelectedStudentIds((current) => current.filter(
+                (id) => (data.students || []).some((student) => student._id === id)
+            ));
+        } catch (error) {
+            setRecipientsError(error.response?.data?.message || 'Could not load selectable students.');
+        } finally {
+            setRecipientsLoading(false);
         }
     }, []);
 
     useEffect(() => {
         loadStudents();
         loadAnalytics();
+        loadRecipients();
+    }, [loadAnalytics, loadRecipients, loadStudents]);
+
+    useEffect(() => {
+        const refreshVisibleDashboard = () => {
+            if (document.visibilityState !== 'visible') return;
+            loadStudents();
+            loadAnalytics();
+        };
+        const intervalId = window.setInterval(refreshVisibleDashboard, 60000);
+        window.addEventListener('focus', refreshVisibleDashboard);
+        return () => {
+            window.clearInterval(intervalId);
+            window.removeEventListener('focus', refreshVisibleDashboard);
+        };
     }, [loadAnalytics, loadStudents]);
 
     const openStudent = async (student) => {
@@ -138,6 +197,11 @@ export default function MentorDashboard() {
 
     const submitBroadcast = async (event) => {
         event.preventDefault();
+        if (recipientsLoading || recipientsError || recipients.length === 0) return;
+        if (recipientMode === 'selected' && selectedStudentIds.length === 0) {
+            setBroadcastError('Select at least one student.');
+            return;
+        }
         setBroadcastLoading(true);
         setBroadcastError('');
         setBroadcastFeedback('');
@@ -146,8 +210,14 @@ export default function MentorDashboard() {
                 ...broadcast,
                 deadline: broadcast.deadline ? new Date(broadcast.deadline).toISOString() : null,
                 estimatedHours: Number(broadcast.estimatedHours),
+                recipientMode,
+                ...(recipientMode === 'selected' ? { studentIds: selectedStudentIds } : {}),
             });
-            setBroadcastFeedback(`Task sent to ${data.count} student${data.count === 1 ? '' : 's'}.`);
+            const recipientCount = data.recipientCount ?? data.count ?? 0;
+            setBroadcastFeedback(`Task sent to ${recipientCount} student${recipientCount === 1 ? '' : 's'}.`);
+            notifyTasksChanged();
+            loadStudents();
+            loadAnalytics();
             setBroadcast({
                 title: '',
                 description: '',
@@ -156,12 +226,19 @@ export default function MentorDashboard() {
                 estimatedHours: '1',
             });
         } catch (error) {
-            setBroadcastError(error.response?.data?.message || 'Could not broadcast this task. Please try again.');
+            if (error.response?.status === 403) {
+                setBroadcastError('You can only send tasks to students assigned to you. Refresh the student list and try again.');
+            } else if (error.response?.status === 400) {
+                setBroadcastError(error.response?.data?.message || 'Check the selected recipients and task details.');
+            } else {
+                setBroadcastError(error.response?.data?.message || 'Could not broadcast this task. Please try again.');
+            }
         } finally {
             setBroadcastLoading(false);
         }
     };
 
+    const broadcastRecipientCount = recipientMode === 'all' ? recipients.length : selectedStudentIds.length;
     const studentTotals = useMemo(() => ({
         overdue: students.reduce((sum, student) => sum + (student.overdueTaskCount || 0), 0),
         atRisk: students.filter((student) => ['high', 'medium'].includes(student.risk?.riskLevel)).length,
@@ -187,6 +264,12 @@ export default function MentorDashboard() {
     const handleRetryDetail = () => {
         if (selectedStudent) openStudent(selectedStudent);
     };
+        pending: analytics?.taskStats?.pending ?? students.reduce((sum, student) => sum + (student.pendingTaskCount || 0), 0),
+        completed: analytics?.taskStats?.completed ?? students.reduce((sum, student) => sum + (student.completedTaskCount || 0), 0),
+        overdue: analytics?.taskStats?.overdue ?? students.reduce((sum, student) => sum + (student.overdueTaskCount || 0), 0),
+    }), [analytics?.taskStats, students]);
+    const riskDistribution = analytics?.riskDistribution ?? { low: 0, medium: 0, high: 0 };
+    const riskTotal = ['high', 'medium', 'low'].reduce((sum, risk) => sum + (riskDistribution[risk] || 0), 0);
 
     return (
         <div className="mx-auto w-full max-w-6xl">
@@ -326,6 +409,22 @@ export default function MentorDashboard() {
                         <button type="button" onClick={loadStudents} className="btn-secondary px-3 py-2 text-sm" disabled={studentsLoading}>
                             {studentsLoading ? 'Refreshing…' : 'Refresh'}
                         </button>
+                <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+                    <div className="card-hard p-4 text-center sm:p-5">
+                        <p className="font-display text-3xl font-bold text-ink">{students.length}</p>
+                        <p className="section-label mt-1">Students</p>
+                    </div>
+                    <div className="card-hard p-4 text-center sm:p-5">
+                        <p className="font-display text-3xl font-bold text-forest">{studentTotals.pending}</p>
+                        <p className="section-label mt-1">Pending tasks</p>
+                    </div>
+                    <div className="card-hard p-4 text-center sm:p-5">
+                        <p className="font-display text-3xl font-bold text-ink">{studentTotals.completed}</p>
+                        <p className="section-label mt-1">Completed tasks</p>
+                    </div>
+                    <div className="card-hard col-span-2 p-4 text-center sm:col-span-1 sm:p-5">
+                        <p className="font-display text-3xl font-bold text-signal">{studentTotals.overdue}</p>
+                        <p className="section-label mt-1">Overdue tasks</p>
                     </div>
                     {!studentsLoading && !studentsError && students.length > 0 && (
                         <div className="mt-4 grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
@@ -475,6 +574,90 @@ export default function MentorDashboard() {
                     </>
                 )}
             </section>
+                                <tbody className="divide-y divide-ink/10">
+                                    {students.map((student) => (
+                                        <tr key={student._id} className="align-top">
+                                            <td className="px-4 py-4">
+                                                <p className="font-body text-sm font-semibold text-ink">{student.name}</p>
+                                                <p className="break-all font-mono text-xs text-ink-faint">{student.email}</p>
+                                                {student.risk?.reasons?.length > 0 && (
+                                                    <ul className="mt-2 space-y-1">
+                                                        {student.risk.reasons.map((reason) => <li key={reason} className="font-body text-xs text-ink-muted">· {reason}</li>)}
+                                                    </ul>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-4"><RiskBadge risk={student.risk} /></td>
+                                            <td className="px-4 py-4">
+                                                <p className="whitespace-nowrap font-mono text-xs text-ink">{student.pendingTaskCount || 0} pending</p>
+                                                <p className="mt-1 whitespace-nowrap font-mono text-xs text-forest">{student.completedTaskCount || 0} completed</p>
+                                                <p className="mt-1 whitespace-nowrap font-mono text-xs text-signal">{student.overdueTaskCount || 0} overdue</p>
+                                            </td>
+                                            <td className="px-4 py-4 font-mono text-sm text-ink">{student.readiness?.score ?? '—'}{student.readiness ? '/100' : ''}</td>
+                                            <td className="px-4 py-4">
+                                                <button type="button" onClick={() => openStudent(student)} className="btn-secondary whitespace-nowrap px-3 py-2 text-xs">
+                                                    View details
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </section>
+
+                <section className="card-hard p-4 sm:p-5" aria-labelledby="broadcast-heading">
+                    <p className="section-label mb-1">Share with your batch</p>
+                    <h2 id="broadcast-heading" className="mb-4 font-display text-xl font-semibold text-ink">Broadcast a task</h2>
+                    {broadcastFeedback && <p className="mb-4 border border-forest/30 bg-forest/10 px-4 py-3 font-body text-sm text-forest" role="status">{broadcastFeedback}</p>}
+                    {broadcastError && <p className="mb-4 border border-signal/30 bg-signal/10 px-4 py-3 font-body text-sm text-signal" role="alert">{broadcastError}</p>}
+                    <form onSubmit={submitBroadcast} className="grid gap-4 sm:grid-cols-2">
+                        <div className="sm:col-span-2">
+                            <label htmlFor="broadcast-title" className="mb-1 block font-body text-sm font-medium text-ink">Title</label>
+                            <input id="broadcast-title" required maxLength={200} value={broadcast.title} onChange={(event) => setBroadcast({ ...broadcast, title: event.target.value })} className="input-base" />
+                        </div>
+                        <div className="sm:col-span-2">
+                            <label htmlFor="broadcast-description" className="mb-1 block font-body text-sm font-medium text-ink">Description</label>
+                            <textarea id="broadcast-description" rows={3} maxLength={2000} value={broadcast.description} onChange={(event) => setBroadcast({ ...broadcast, description: event.target.value })} className="input-base resize-y" />
+                        </div>
+                        <div>
+                            <label htmlFor="broadcast-deadline" className="mb-1 block font-body text-sm font-medium text-ink">Deadline</label>
+                            <input id="broadcast-deadline" type="datetime-local" value={broadcast.deadline} onChange={(event) => setBroadcast({ ...broadcast, deadline: event.target.value })} className="input-base min-w-0" />
+                        </div>
+                        <div>
+                            <label htmlFor="broadcast-category" className="mb-1 block font-body text-sm font-medium text-ink">Category</label>
+                            <select id="broadcast-category" value={broadcast.category} onChange={(event) => setBroadcast({ ...broadcast, category: event.target.value })} className="input-base">
+                                {['assessment', 'assignment', 'placement', 'event', 'personal'].map((category) => <option key={category} value={category}>{category}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label htmlFor="broadcast-hours" className="mb-1 block font-body text-sm font-medium text-ink">Estimated hours</label>
+                            <input id="broadcast-hours" type="number" min="0" max="100" step="0.5" required value={broadcast.estimatedHours} onChange={(event) => setBroadcast({ ...broadcast, estimatedHours: event.target.value })} className="input-base" />
+                        </div>
+                        <RecipientSelector
+                            recipients={recipients}
+                            loading={recipientsLoading}
+                            error={recipientsError}
+                            onRetry={loadRecipients}
+                            isAdmin={user?.role === 'admin'}
+                            recipientMode={recipientMode}
+                            setRecipientMode={setRecipientMode}
+                            selectedStudentIds={selectedStudentIds}
+                            setSelectedStudentIds={setSelectedStudentIds}
+                        />
+                        {broadcastRecipientCount > 0 && (
+                            <p className="font-body text-sm text-ink-muted sm:col-span-2" role="status">
+                                This will notify {broadcastRecipientCount} {broadcastRecipientCount === 1 ? 'student' : 'students'}.
+                            </p>
+                        )}
+                        <div className="flex items-end">
+                            <button type="submit" disabled={broadcastLoading || recipientsLoading || Boolean(recipientsError) || recipients.length === 0 || (recipientMode === 'selected' && selectedStudentIds.length === 0)} className="btn-primary w-full sm:w-auto">
+                                {broadcastLoading ? 'Sending…' : 'Send task'}
+                            </button>
+                        </div>
+                    </form>
+                </section>
+            </main>
 
             {selectedStudent && (
                 <StudentDetailDrawer

@@ -6,6 +6,7 @@ import { buildDigest } from '../services/digestService.js';
 import { detectConflicts } from '../services/capacityService.js';
 import { addDaysToKey, dayKeyToDate, istDayKey } from '../utils/dateHelpers.js';
 import { computeProgress } from '../utils/roadmapHelpers.js';
+import { getTaskStats } from '../services/taskStatsService.js';
 
 const loadRoadmapProgress = async (userId) => {
     const roadmaps = await Roadmap.find({ user: userId, status: 'active' })
@@ -61,8 +62,8 @@ export const getStudentDashboard = async (req, res, next) => {
         const [
             todayTasks,
             nextDeadlines,
-            overdueCount,
             roadmapData,
+            taskStats,
             readiness,
             conflicts,
             digest,
@@ -78,12 +79,8 @@ export const getStudentDashboard = async (req, res, next) => {
                 status: { $ne: 'completed' },
                 deadline: { $gte: now },
             }).sort({ deadline: 1 }).limit(5).lean()),
-            tryPart('overdue task count', () => Task.countDocuments({
-                user: req.user.id,
-                status: { $ne: 'completed' },
-                deadline: { $lt: now, $ne: null },
-            })),
             tryPart('roadmap progress', () => loadRoadmapProgress(req.user.id)),
+            getTaskStats(req.user.id, now),
             tryPart('readiness', () => getReadiness(req.user.id, now)),
             tryPart('planner conflicts', () => detectConflicts(req.user.id)),
             tryPart('daily digest', () => buildDigest(req.user.id, now)),
@@ -95,7 +92,8 @@ export const getStudentDashboard = async (req, res, next) => {
             message: 'Student dashboard retrieved successfully',
             todayTasks,
             nextDeadlines,
-            overdueCount,
+            overdueCount: taskStats.overdue,
+            taskStats,
             activeRoadmaps: roadmapData?.activeRoadmaps ?? null,
             streak: roadmapData?.streak ?? null,
             readiness,

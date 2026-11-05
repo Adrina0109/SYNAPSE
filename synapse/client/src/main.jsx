@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
+import { TaskStatsProvider } from './context/TaskStatsContext.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
@@ -15,5 +16,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
                 </AuthProvider>
             </BrowserRouter>
         </ThemeProvider>
+        <BrowserRouter>
+            <AuthProvider>
+                <TaskStatsProvider>
+                    <App />
+                </TaskStatsProvider>
+            </AuthProvider>
+        </BrowserRouter>
     </React.StrictMode>,
 )
