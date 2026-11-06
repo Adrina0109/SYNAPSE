@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import api from '../lib/api.js';
 import CertificationBanner from '../components/roadmaps/CertificationBanner.jsx';
+import JourneyMap from '../components/roadmaps/JourneyMap.jsx';
+import { buildJourneyLevels } from '../components/roadmaps/journeyLevels.js';
 import {
     formatDay,
     LEVEL_LABELS,
@@ -26,6 +28,7 @@ export default function RoadmapDetail() {
     const [pendingDay, setPendingDay] = useState(null);
     const [pendingNotesDay, setPendingNotesDay] = useState(null);
     const [notesErrors, setNotesErrors] = useState({});
+    const [selectedLevel, setSelectedLevel] = useState(null);
     const todayRef = useRef(null);
     const didScrollToday = useRef(false);
 
@@ -44,6 +47,7 @@ export default function RoadmapDetail() {
 
     useEffect(() => {
         setRoadmap(null);
+        setSelectedLevel(null);
         didScrollToday.current = false;
         loadRoadmap();
     }, [loadRoadmap]);
@@ -86,6 +90,12 @@ export default function RoadmapDetail() {
             setPendingNotesDay(null);
         }
     };
+
+    const journeyLevels = buildJourneyLevels(roadmap?.days || [], roadmap?.status);
+    const selectedJourneyLevel = journeyLevels.find((level) => level.index === selectedLevel);
+    const visibleDays = selectedJourneyLevel
+        ? roadmap.days.filter((day) => selectedJourneyLevel.dayNumbers.includes(day.dayNumber))
+        : roadmap?.days || [];
 
     return (
         <div className="mx-auto w-full max-w-5xl">
@@ -138,9 +148,34 @@ export default function RoadmapDetail() {
                             </Card>
                         </div>
 
+                        <section className="mb-8 space-y-3" aria-labelledby="learning-journey-title">
+                            <div>
+                                <h2 id="learning-journey-title" className="font-display text-xl font-semibold text-text">Your learning journey</h2>
+                                <p className="mt-1 font-body text-sm text-text-muted">Complete each level to unlock the next.</p>
+                            </div>
+                            <Card className="min-w-0 p-4 sm:p-6">
+                                <JourneyMap
+                                    levels={journeyLevels}
+                                    selectedLevel={selectedLevel}
+                                    onSelectLevel={setSelectedLevel}
+                                />
+                            </Card>
+                        </section>
+
                         {actionError && (
                             <div className="mb-5 px-4 py-3 bg-signal/10 border border-signal/30 text-signal font-body text-sm" role="alert" aria-live="polite">
                                 {actionError}
+                            </div>
+                        )}
+
+                        {selectedJourneyLevel && (
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                                <p className="font-body text-sm text-text-muted" aria-live="polite">
+                                    Showing {selectedJourneyLevel.title.toLowerCase()} · {selectedJourneyLevel.rangeLabel}
+                                </p>
+                                <button type="button" className="btn-secondary px-4 py-2 text-sm" onClick={() => setSelectedLevel(null)}>
+                                    All days
+                                </button>
                             </div>
                         )}
 
@@ -148,7 +183,7 @@ export default function RoadmapDetail() {
                             <div className="card-hard p-6 font-body text-sm text-ink-muted">This roadmap has no study days yet.</div>
                         ) : (
                             <ol className="relative space-y-4 before:absolute before:left-[15px] before:top-4 before:bottom-4 before:w-px before:bg-ink/15">
-                                {roadmap.days.map((day) => {
+                                {visibleDays.map((day) => {
                                     const isToday = roadmap.progress?.todayDayNumber === day.dayNumber;
                                     const isBehind = !isToday && day.dayNumber < (roadmap.progress?.todayDayNumber || 0) && !day.completed;
                                     return (

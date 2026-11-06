@@ -19,6 +19,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { useTaskStats } from '../context/TaskStatsContext.jsx';
 import api from '../lib/api.js';
 import ErrorState from '../components/ui/ErrorState.jsx';
+import TaskItem from '../components/tasks/TaskItem.jsx';
+import { sortTasksByDeadline } from '../components/tasks/taskHelpers.js';
 
 const errorMessage = (error, fallback) => (
     error.response?.data?.message || error.message || fallback
