@@ -60,9 +60,7 @@ export default function ResumeGap({ onRoadmapPreview }) {
                 const formData = new FormData();
                 formData.append('resume', file);
                 formData.append('jobDescription', jobDescription.trim());
-                                response = await api.post('/placement/resume-gap', formData, {
-                    headers: { 'Content-Type': 'multipart/form-data' },
-                });
+                response = await api.post('/placement/resume-gap', formData);
             } else {
                 response = await api.post('/placement/resume-gap', {
                     jobDescription: jobDescription.trim(),

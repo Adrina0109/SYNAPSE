@@ -3,9 +3,6 @@ import axios from 'axios';
 const api = axios.create({
     baseURL: '/api',
     withCredentials: true, // Send cookies with every request
-    headers: {
-        'Content-Type': 'application/json',
-    },
 });
 
 // Response interceptor: handle 401 globally
