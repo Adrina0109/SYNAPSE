@@ -23,13 +23,14 @@ import errorHandler from './middleware/errorHandler.js';
 
 const app = express();
 app.disable('etag');
+app.set('trust proxy', 1);
 
 // Security middleware
 app.use(helmet({
     crossOriginEmbedderPolicy: false,
 }));
 app.use(cors({
-    origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+    origin: process.env.CLIENT_ORIGIN,
     credentials: true,
 }));
 app.use(mongoSanitize());
@@ -40,6 +41,10 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(cookieParser());
 
 // Routes
+app.get('/api/health', (req, res) => {
+    res.status(200).json({ success: true });
+});
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/tasks', taskRoutes);
