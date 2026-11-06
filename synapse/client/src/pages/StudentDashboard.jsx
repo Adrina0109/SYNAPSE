@@ -563,7 +563,7 @@ export default function StudentDashboard() {
                                             </li>
                                         ))}
                                     </ul>
-                                    <Link to="/assistant" className="btn-primary mt-5 inline-flex px-4 py-2 text-sm">Open assistant</Link>
+                                    {/* <Link to="/assistant" className="btn-primary mt-5 inline-flex px-4 py-2 text-sm">Open assistant</Link> */}
                                 </div>
                             </div>
                         </section>

@@ -254,10 +254,6 @@ export default function Landing() {
                         </a>
                     </div>
 
-                    {/* Small note */}
-                    <p className="mt-8 font-mono text-xs text-ink-faint">
-                        Built for one class. Not a generic LMS. No fluff.
-                    </p>
                 </div>
 
                 {/* Signal SVG */}
@@ -281,7 +277,7 @@ export default function Landing() {
                 <div className="grid lg:grid-cols-2 gap-16 items-center">
                     {/* Scattered snippets */}
                     <div className="relative h-80">
-                        <PaperSnippet from="WhatsApp · 11:42pm" text="Bhai resume workshop kal hai — Room 301 ya 302, confirm karo" rotate={-4} className="top-4 left-2" />
+                        <PaperSnippet from="WhatsApp · 11:42pm" text="Resume workshop is happening today — Room 301 or 302 ?" rotate={-4} className="top-4 left-2" />
                         <PaperSnippet from="Email · Subject: Circular 4" text="IMPORTANT: Exam schedule changed. Refer attached PDF for new dates." rotate={2.5} className="top-2 right-4 w-52" />
                         <PaperSnippet from="Google Form" text="Internal assessment attendance — fill before 5pm or marked absent" rotate={-2} className="top-32 left-14" />
                         <PaperSnippet from="Notice board" text="XYZ Corp campus drive — apply via college portal (link TBA)" rotate={3} className="bottom-4 right-0 w-44" />
@@ -536,13 +532,7 @@ export default function Landing() {
 
                     <div className="text-right">
                         <p className="font-body text-sm text-ink-muted">
-                            Built by <span className="font-medium text-ink">Team Synapse</span>
-                        </p>
-                        <p className="font-mono text-xs text-ink-faint mt-1">
-                            Hackathon project · Not affiliated with any institution
-                        </p>
-                        <p className="font-mono text-xs text-ink-faint mt-0.5">
-                            Student success platform — one batch at a time
+                            Built by <span className="font-medium text-ink">Team Cipher</span>
                         </p>
                     </div>
                 </div>
